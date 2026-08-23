@@ -113,7 +113,6 @@ class AnalysisService {
         let paymentVerification;
         let suitabilityAnalysis;
         let alternatives = [];
-        let valueAnalysis;
         try {
             const mlRisk = await mlClient_service_1.mlClient.analyzeRisk(extractedOpportunity);
             riskAnalysis = {
@@ -179,7 +178,7 @@ class AnalysisService {
             logger_1.logger.warn('ML alternatives failed', { error: error.message });
             alternatives = [];
         }
-        valueAnalysis = {
+        const valueAnalysis = {
             score: null,
             potentialSaving: 0,
             alternatives,
@@ -224,7 +223,7 @@ class AnalysisService {
         const lowerText = text.toLowerCase();
         const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
         const urlRegex = /https?:\/\/[^\s]+/g;
-        const phoneRegex = /[\+]?[(]?[0-9]{1,3}[)]?[-\s\.]?[(]?[0-9]{1,3}[)]?[-\s\.]?[0-9]{4,6}/g;
+        const phoneRegex = /[+]?[(]?[0-9]{1,3}[)]?[-\s.]?[(]?[0-9]{1,3}[)]?[-\s.]?[0-9]{4,6}/g;
         const emails = text.match(emailRegex) || [];
         const urls = text.match(urlRegex) || [];
         const phones = text.match(phoneRegex) || [];

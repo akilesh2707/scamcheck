@@ -2,13 +2,23 @@ import { Request, Response, NextFunction } from 'express';
 import { RateLimiterRedis } from 'rate-limiter-flexible';
 import { createClient } from 'redis';
 import { config } from '../config/env';
-import { AppError } from './error.middleware';
+import { AppError } from '../utils/errors';
 
 let rateLimiter: RateLimiterRedis | null = null;
 
 export const initRateLimiter = async (): Promise<void> => {
   try {
-    const redisClient = createClient({ url: config.redis.url });
+    const redisClient = createClient({ 
+      url: config.redis.url,
+      socket: {
+        reconnectStrategy: (retries) => {
+          if (retries > 3) {
+            return new Error('Redis connection retries exhausted');
+          }
+          return Math.min(retries * 50, 500);
+        }
+      }
+    });
     redisClient.on('error', (err) => console.error('Redis error:', err));
     await redisClient.connect();
 

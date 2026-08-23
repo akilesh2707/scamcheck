@@ -5,7 +5,7 @@ const mlClient_service_1 = require("../services/mlClient.service");
 const logger_1 = require("../utils/logger");
 const errors_1 = require("../utils/errors");
 class SuitabilityController {
-    async analyze(req, res) {
+    async analyze(req, res, next) {
         try {
             const { opportunityId, opportunity, userProfile } = req.body;
             if (!opportunityId && !opportunity) {
@@ -16,7 +16,7 @@ class SuitabilityController {
                 res.status(400).json(response);
                 return;
             }
-            let opp = opportunity;
+            const opp = opportunity;
             if (opportunityId) {
                 const response = {
                     success: false,
@@ -42,12 +42,12 @@ class SuitabilityController {
                     res.status(501).json(response);
                     return;
                 }
-                throw error;
+                next(error);
             }
         }
         catch (error) {
             logger_1.logger.error('Suitability analysis error', { error: error.message });
-            throw error;
+            next(error);
         }
     }
 }

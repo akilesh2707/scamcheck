@@ -63,8 +63,8 @@ const createApp = () => {
     app.use((0, morgan_1.default)(env_1.config.nodeEnv === 'production' ? 'combined' : 'dev'));
     app.use(express_1.default.json({ limit: '10mb' }));
     app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
-    app.get('/health', (req, res) => {
-        res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    app.get('/api/health', (req, res) => {
+        res.json({ success: true, service: 'scamcheck-backend', status: 'healthy' });
     });
     app.get('/api', (req, res) => {
         res.json({

@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.companyController = exports.CompanyController = void 0;
 class CompanyController {
-    async verify(req, res) {
+    async verify(req, res, next) {
         try {
             const { name, email, website } = req.body;
             const response = {
@@ -12,7 +12,7 @@ class CompanyController {
             res.status(501).json(response);
         }
         catch (error) {
-            throw error;
+            next(error);
         }
     }
 }

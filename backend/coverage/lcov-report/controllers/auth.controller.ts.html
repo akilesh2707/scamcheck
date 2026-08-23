@@ -343,14 +343,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span></td><td class="text"><pre class="prettyprint lang-js">import { Response } from 'express';
+<span class="cline-any cline-yes">1x</span></td><td class="text"><pre class="prettyprint lang-js">import { Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ApiResponse } from '../types/api';
 import { logger } from '../utils/logger';
 &nbsp;
 export class AuthController {
-<span class="fstat-no" title="function not covered" >  async </span>register(req: AuthenticatedRequest, res: Response): Promise&lt;void&gt; {
+<span class="fstat-no" title="function not covered" >  async </span>register(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise&lt;void&gt; {
 <span class="cstat-no" title="statement not covered" >    try {</span>
       const { email, password, name } = <span class="cstat-no" title="statement not covered" >req.body;</span>
       const result = <span class="cstat-no" title="statement not covered" >await authService.register(email, password, name);</span>
@@ -362,11 +362,11 @@ export class AuthController {
 <span class="cstat-no" title="statement not covered" >      res.status(201).json(response);</span>
     } catch (error) {
 <span class="cstat-no" title="statement not covered" >      logger.error('Register error', { error: (error as Error).message });</span>
-<span class="cstat-no" title="statement not covered" >      throw error;</span>
+<span class="cstat-no" title="statement not covered" >      next(error);</span>
     }
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  async </span>login(req: AuthenticatedRequest, res: Response): Promise&lt;void&gt; {
+<span class="fstat-no" title="function not covered" >  async </span>login(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise&lt;void&gt; {
 <span class="cstat-no" title="statement not covered" >    try {</span>
       const { email, password } = <span class="cstat-no" title="statement not covered" >req.body;</span>
       const result = <span class="cstat-no" title="statement not covered" >await authService.login(email, password);</span>
@@ -378,11 +378,11 @@ export class AuthController {
 <span class="cstat-no" title="statement not covered" >      res.json(response);</span>
     } catch (error) {
 <span class="cstat-no" title="statement not covered" >      logger.error('Login error', { error: (error as Error).message });</span>
-<span class="cstat-no" title="statement not covered" >      throw error;</span>
+<span class="cstat-no" title="statement not covered" >      next(error);</span>
     }
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  async </span>me(req: AuthenticatedRequest, res: Response): Promise&lt;void&gt; {
+<span class="fstat-no" title="function not covered" >  async </span>me(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise&lt;void&gt; {
 <span class="cstat-no" title="statement not covered" >    try {</span>
       const userId = <span class="cstat-no" title="statement not covered" >req.user?.id;</span>
 <span class="cstat-no" title="statement not covered" >      <span class="missing-if-branch" title="if path not taken" >I</span>if (!userId) {</span>
@@ -403,11 +403,11 @@ export class AuthController {
 <span class="cstat-no" title="statement not covered" >      res.json(response);</span>
     } catch (error) {
 <span class="cstat-no" title="statement not covered" >      logger.error('Get me error', { error: (error as Error).message });</span>
-<span class="cstat-no" title="statement not covered" >      throw error;</span>
+<span class="cstat-no" title="statement not covered" >      next(error);</span>
     }
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  async </span>updateProfile(req: AuthenticatedRequest, res: Response): Promise&lt;void&gt; {
+<span class="fstat-no" title="function not covered" >  async </span>updateProfile(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise&lt;void&gt; {
 <span class="cstat-no" title="statement not covered" >    try {</span>
       const userId = <span class="cstat-no" title="statement not covered" >req.user?.id;</span>
 <span class="cstat-no" title="statement not covered" >      <span class="missing-if-branch" title="if path not taken" >I</span>if (!userId) {</span>
@@ -428,11 +428,11 @@ export class AuthController {
 <span class="cstat-no" title="statement not covered" >      res.json(response);</span>
     } catch (error) {
 <span class="cstat-no" title="statement not covered" >      logger.error('Update profile error', { error: (error as Error).message });</span>
-<span class="cstat-no" title="statement not covered" >      throw error;</span>
+<span class="cstat-no" title="statement not covered" >      next(error);</span>
     }
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  async </span>updateUserProfile(req: AuthenticatedRequest, res: Response): Promise&lt;void&gt; {
+<span class="fstat-no" title="function not covered" >  async </span>updateUserProfile(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise&lt;void&gt; {
 <span class="cstat-no" title="statement not covered" >    try {</span>
       const userId = <span class="cstat-no" title="statement not covered" >req.user?.id;</span>
 <span class="cstat-no" title="statement not covered" >      <span class="missing-if-branch" title="if path not taken" >I</span>if (!userId) {</span>
@@ -453,11 +453,11 @@ export class AuthController {
 <span class="cstat-no" title="statement not covered" >      res.json(response);</span>
     } catch (error) {
 <span class="cstat-no" title="statement not covered" >      logger.error('Update user profile error', { error: (error as Error).message });</span>
-<span class="cstat-no" title="statement not covered" >      throw error;</span>
+<span class="cstat-no" title="statement not covered" >      next(error);</span>
     }
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  async </span>getUserProfile(req: AuthenticatedRequest, res: Response): Promise&lt;void&gt; {
+<span class="fstat-no" title="function not covered" >  async </span>getUserProfile(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise&lt;void&gt; {
 <span class="cstat-no" title="statement not covered" >    try {</span>
       const userId = <span class="cstat-no" title="statement not covered" >req.user?.id;</span>
 <span class="cstat-no" title="statement not covered" >      <span class="missing-if-branch" title="if path not taken" >I</span>if (!userId) {</span>
@@ -478,7 +478,7 @@ export class AuthController {
 <span class="cstat-no" title="statement not covered" >      res.json(response);</span>
     } catch (error) {
 <span class="cstat-no" title="statement not covered" >      logger.error('Get user profile error', { error: (error as Error).message });</span>
-<span class="cstat-no" title="statement not covered" >      throw error;</span>
+<span class="cstat-no" title="statement not covered" >      next(error);</span>
     }
   }
 }
@@ -490,7 +490,7 @@ export const authController = new AuthController();</pre></td></tr></table></pre
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-08-23T07:51:57.777Z
+                at 2026-08-23T08:26:44.347Z
             </div>
         <script src="../prettify.js"></script>
         <script>

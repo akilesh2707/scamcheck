@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.reportController = exports.ReportController = void 0;
 const analysis_service_1 = require("../services/analysis.service");
 class ReportController {
-    async getReport(req, res) {
+    async getReport(req, res, next) {
         try {
             const { id } = req.params;
             const report = await analysis_service_1.analysisService.getReportById(id);
@@ -22,10 +22,10 @@ class ReportController {
             res.json(response);
         }
         catch (error) {
-            throw error;
+            next(error);
         }
     }
-    async getHistory(req, res) {
+    async getHistory(req, res, next) {
         try {
             const userId = req.user?.id;
             if (!userId) {
@@ -46,7 +46,7 @@ class ReportController {
             res.json(response);
         }
         catch (error) {
-            throw error;
+            next(error);
         }
     }
 }

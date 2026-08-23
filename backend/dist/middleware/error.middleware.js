@@ -1,20 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.notFoundHandler = exports.errorHandler = exports.AppError = void 0;
+exports.notFoundHandler = exports.errorHandler = void 0;
 const zod_1 = require("zod");
-class AppError extends Error {
-    code;
-    statusCode;
-    details;
-    constructor(code, message, statusCode = 500, details) {
-        super(message);
-        this.code = code;
-        this.statusCode = statusCode;
-        this.details = details;
-        this.name = 'AppError';
-    }
-}
-exports.AppError = AppError;
+const env_1 = require("../config/env");
+const errors_1 = require("../utils/errors");
 const errorHandler = (err, req, res, next) => {
     console.error('Error:', err);
     if (err instanceof zod_1.ZodError) {
@@ -29,7 +18,7 @@ const errorHandler = (err, req, res, next) => {
         res.status(400).json(response);
         return;
     }
-    if (err instanceof AppError) {
+    if (err instanceof errors_1.AppError) {
         const response = {
             success: false,
             error: {
@@ -75,5 +64,4 @@ const notFoundHandler = (req, res) => {
     res.status(404).json(response);
 };
 exports.notFoundHandler = notFoundHandler;
-const env_1 = require("../config/env");
 //# sourceMappingURL=error.middleware.js.map

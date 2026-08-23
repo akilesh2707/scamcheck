@@ -1,10 +1,10 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ApiResponse } from '../types/api';
 import { NotImplementedError } from '../utils/errors';
 
 export class WebsiteController {
-  async analyze(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async analyze(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { url } = req.body;
 
@@ -23,7 +23,7 @@ export class WebsiteController {
       };
       res.status(501).json(response);
     } catch (error) {
-      throw error;
+      next(error);
     }
   }
 }

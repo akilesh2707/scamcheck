@@ -4,7 +4,7 @@ exports.authController = exports.AuthController = void 0;
 const auth_service_1 = require("../services/auth.service");
 const logger_1 = require("../utils/logger");
 class AuthController {
-    async register(req, res) {
+    async register(req, res, next) {
         try {
             const { email, password, name } = req.body;
             const result = await auth_service_1.authService.register(email, password, name);
@@ -16,10 +16,10 @@ class AuthController {
         }
         catch (error) {
             logger_1.logger.error('Register error', { error: error.message });
-            throw error;
+            next(error);
         }
     }
-    async login(req, res) {
+    async login(req, res, next) {
         try {
             const { email, password } = req.body;
             const result = await auth_service_1.authService.login(email, password);
@@ -31,10 +31,10 @@ class AuthController {
         }
         catch (error) {
             logger_1.logger.error('Login error', { error: error.message });
-            throw error;
+            next(error);
         }
     }
-    async me(req, res) {
+    async me(req, res, next) {
         try {
             const userId = req.user?.id;
             if (!userId) {
@@ -54,10 +54,10 @@ class AuthController {
         }
         catch (error) {
             logger_1.logger.error('Get me error', { error: error.message });
-            throw error;
+            next(error);
         }
     }
-    async updateProfile(req, res) {
+    async updateProfile(req, res, next) {
         try {
             const userId = req.user?.id;
             if (!userId) {
@@ -77,10 +77,10 @@ class AuthController {
         }
         catch (error) {
             logger_1.logger.error('Update profile error', { error: error.message });
-            throw error;
+            next(error);
         }
     }
-    async updateUserProfile(req, res) {
+    async updateUserProfile(req, res, next) {
         try {
             const userId = req.user?.id;
             if (!userId) {
@@ -100,10 +100,10 @@ class AuthController {
         }
         catch (error) {
             logger_1.logger.error('Update user profile error', { error: error.message });
-            throw error;
+            next(error);
         }
     }
-    async getUserProfile(req, res) {
+    async getUserProfile(req, res, next) {
         try {
             const userId = req.user?.id;
             if (!userId) {
@@ -123,7 +123,7 @@ class AuthController {
         }
         catch (error) {
             logger_1.logger.error('Get user profile error', { error: error.message });
-            throw error;
+            next(error);
         }
     }
 }

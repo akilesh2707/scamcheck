@@ -4,7 +4,7 @@ exports.analyzeController = exports.AnalyzeController = void 0;
 const analysis_service_1 = require("../services/analysis.service");
 const logger_1 = require("../utils/logger");
 class AnalyzeController {
-    async analyze(req, res) {
+    async analyze(req, res, next) {
         try {
             const { inputType, text, url, userProfile } = req.body;
             const userId = req.user?.id;
@@ -36,10 +36,10 @@ class AnalyzeController {
         }
         catch (error) {
             logger_1.logger.error('Analysis error', { error: error.message });
-            throw error;
+            next(error);
         }
     }
-    async getReport(req, res) {
+    async getReport(req, res, next) {
         try {
             const { id } = req.params;
             const report = await analysis_service_1.analysisService.getReportById(id);
@@ -59,10 +59,10 @@ class AnalyzeController {
         }
         catch (error) {
             logger_1.logger.error('Get report error', { error: error.message });
-            throw error;
+            next(error);
         }
     }
-    async getHistory(req, res) {
+    async getHistory(req, res, next) {
         try {
             const userId = req.user?.id;
             if (!userId) {
@@ -84,7 +84,7 @@ class AnalyzeController {
         }
         catch (error) {
             logger_1.logger.error('Get history error', { error: error.message });
-            throw error;
+            next(error);
         }
     }
 }

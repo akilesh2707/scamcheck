@@ -1,9 +1,9 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ApiResponse } from '../types/api';
 
 export class CompanyController {
-  async verify(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async verify(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { name, email, website } = req.body;
 
@@ -13,7 +13,7 @@ export class CompanyController {
       };
       res.status(501).json(response);
     } catch (error) {
-      throw error;
+      next(error);
     }
   }
 }

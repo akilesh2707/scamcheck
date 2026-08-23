@@ -1,7 +1,7 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 export declare class AlternativesController {
-    find(req: AuthenticatedRequest, res: Response): Promise<void>;
+    find(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void>;
 }
 export declare const alternativesController: AlternativesController;
 //# sourceMappingURL=alternatives.controller.d.ts.map

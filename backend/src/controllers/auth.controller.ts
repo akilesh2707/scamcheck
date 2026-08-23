@@ -1,11 +1,11 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ApiResponse } from '../types/api';
 import { logger } from '../utils/logger';
 
 export class AuthController {
-  async register(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async register(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email, password, name } = req.body;
       const result = await authService.register(email, password, name);
@@ -17,11 +17,11 @@ export class AuthController {
       res.status(201).json(response);
     } catch (error) {
       logger.error('Register error', { error: (error as Error).message });
-      throw error;
+      next(error);
     }
   }
 
-  async login(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async login(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email, password } = req.body;
       const result = await authService.login(email, password);
@@ -33,11 +33,11 @@ export class AuthController {
       res.json(response);
     } catch (error) {
       logger.error('Login error', { error: (error as Error).message });
-      throw error;
+      next(error);
     }
   }
 
-  async me(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async me(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -58,11 +58,11 @@ export class AuthController {
       res.json(response);
     } catch (error) {
       logger.error('Get me error', { error: (error as Error).message });
-      throw error;
+      next(error);
     }
   }
 
-  async updateProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async updateProfile(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -83,11 +83,11 @@ export class AuthController {
       res.json(response);
     } catch (error) {
       logger.error('Update profile error', { error: (error as Error).message });
-      throw error;
+      next(error);
     }
   }
 
-  async updateUserProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async updateUserProfile(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -108,11 +108,11 @@ export class AuthController {
       res.json(response);
     } catch (error) {
       logger.error('Update user profile error', { error: (error as Error).message });
-      throw error;
+      next(error);
     }
   }
 
-  async getUserProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async getUserProfile(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -133,7 +133,7 @@ export class AuthController {
       res.json(response);
     } catch (error) {
       logger.error('Get user profile error', { error: (error as Error).message });
-      throw error;
+      next(error);
     }
   }
 }

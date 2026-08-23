@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { mlClient } from '../services/mlClient.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ApiResponse } from '../types/api';
@@ -6,7 +6,7 @@ import { logger } from '../utils/logger';
 import { NotImplementedError } from '../utils/errors';
 
 export class SuitabilityController {
-  async analyze(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async analyze(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { opportunityId, opportunity, userProfile } = req.body;
 
@@ -19,7 +19,7 @@ export class SuitabilityController {
         return;
       }
 
-      let opp = opportunity;
+      const opp = opportunity;
       if (opportunityId) {
         const response: ApiResponse<null> = {
           success: false,
@@ -45,11 +45,11 @@ export class SuitabilityController {
           res.status(501).json(response);
           return;
         }
-        throw error;
+        next(error);
       }
     } catch (error) {
       logger.error('Suitability analysis error', { error: (error as Error).message });
-      throw error;
+      next(error);
     }
   }
 }

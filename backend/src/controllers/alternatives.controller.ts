@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { mlClient } from '../services/mlClient.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ApiResponse } from '../types/api';
@@ -6,7 +6,7 @@ import { logger } from '../utils/logger';
 import { NotImplementedError } from '../utils/errors';
 
 export class AlternativesController {
-  async find(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async find(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { opportunityId, opportunity, userProfile, limit } = req.body;
 
@@ -19,7 +19,7 @@ export class AlternativesController {
         return;
       }
 
-      let opp = opportunity;
+      const opp = opportunity;
       if (opportunityId) {
         const response: ApiResponse<null> = {
           success: false,
@@ -45,11 +45,11 @@ export class AlternativesController {
           res.status(501).json(response);
           return;
         }
-        throw error;
+        next(error);
       }
     } catch (error) {
       logger.error('Alternative discovery error', { error: (error as Error).message });
-      throw error;
+      next(error);
     }
   }
 }

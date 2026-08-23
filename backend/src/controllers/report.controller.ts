@@ -1,10 +1,10 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { analysisService } from '../services/analysis.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ApiResponse } from '../types/api';
 
 export class ReportController {
-  async getReport(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async getReport(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const report = await analysisService.getReportById(id);
@@ -24,11 +24,11 @@ export class ReportController {
       };
       res.json(response);
     } catch (error) {
-      throw error;
+      next(error);
     }
   }
 
-  async getHistory(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async getHistory(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -51,7 +51,7 @@ export class ReportController {
       };
       res.json(response);
     } catch (error) {
-      throw error;
+      next(error);
     }
   }
 }

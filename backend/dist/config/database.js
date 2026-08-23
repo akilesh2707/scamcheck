@@ -12,8 +12,7 @@ const connectDatabase = async () => {
         console.log('MongoDB connected successfully');
     }
     catch (error) {
-        console.error('MongoDB connection error:', error);
-        process.exit(1);
+        console.error('MongoDB connection error. The server will continue running, but endpoints requiring the database may fail:', error);
     }
 };
 exports.connectDatabase = connectDatabase;

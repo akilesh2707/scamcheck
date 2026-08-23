@@ -5,7 +5,7 @@ const mlClient_service_1 = require("../services/mlClient.service");
 const logger_1 = require("../utils/logger");
 const errors_1 = require("../utils/errors");
 class PaymentController {
-    async verify(req, res) {
+    async verify(req, res, next) {
         try {
             const { opportunityId, opportunity, claimedAmount, claimedPurpose } = req.body;
             if (!opportunityId && !opportunity) {
@@ -16,7 +16,7 @@ class PaymentController {
                 res.status(400).json(response);
                 return;
             }
-            let opp = opportunity;
+            const opp = opportunity;
             if (opportunityId) {
                 const response = {
                     success: false,
@@ -42,12 +42,12 @@ class PaymentController {
                     res.status(501).json(response);
                     return;
                 }
-                throw error;
+                next(error);
             }
         }
         catch (error) {
             logger_1.logger.error('Payment verification error', { error: error.message });
-            throw error;
+            next(error);
         }
     }
 }

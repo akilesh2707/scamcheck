@@ -1,11 +1,11 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { analysisService } from '../services/analysis.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ApiResponse } from '../types/api';
 import { logger } from '../utils/logger';
 
 export class AnalyzeController {
-  async analyze(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async analyze(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { inputType, text, url, userProfile } = req.body;
       const userId = req.user?.id;
@@ -37,11 +37,11 @@ export class AnalyzeController {
       res.json(response);
     } catch (error) {
       logger.error('Analysis error', { error: (error as Error).message });
-      throw error;
+      next(error);
     }
   }
 
-  async getReport(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async getReport(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const report = await analysisService.getReportById(id);
@@ -62,11 +62,11 @@ export class AnalyzeController {
       res.json(response);
     } catch (error) {
       logger.error('Get report error', { error: (error as Error).message });
-      throw error;
+      next(error);
     }
   }
 
-  async getHistory(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async getHistory(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -90,7 +90,7 @@ export class AnalyzeController {
       res.json(response);
     } catch (error) {
       logger.error('Get history error', { error: (error as Error).message });
-      throw error;
+      next(error);
     }
   }
 }

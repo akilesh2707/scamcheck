@@ -1,18 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { ApiError, ApiResponse } from '../types/api';
 import { ZodError } from 'zod';
+import { config } from '../config/env';
 
-export class AppError extends Error {
-  constructor(
-    public code: string,
-    message: string,
-    public statusCode: number = 500,
-    public details?: unknown
-  ) {
-    super(message);
-    this.name = 'AppError';
-  }
-}
+import { AppError } from '../utils/errors';
 
 export const errorHandler = (
   err: Error,
@@ -82,5 +73,3 @@ export const notFoundHandler = (req: Request, res: Response): void => {
   };
   res.status(404).json(response);
 };
-
-import { config } from '../config/env';

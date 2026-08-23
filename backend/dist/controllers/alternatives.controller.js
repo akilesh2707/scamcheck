@@ -5,7 +5,7 @@ const mlClient_service_1 = require("../services/mlClient.service");
 const logger_1 = require("../utils/logger");
 const errors_1 = require("../utils/errors");
 class AlternativesController {
-    async find(req, res) {
+    async find(req, res, next) {
         try {
             const { opportunityId, opportunity, userProfile, limit } = req.body;
             if (!opportunityId && !opportunity) {
@@ -16,7 +16,7 @@ class AlternativesController {
                 res.status(400).json(response);
                 return;
             }
-            let opp = opportunity;
+            const opp = opportunity;
             if (opportunityId) {
                 const response = {
                     success: false,
@@ -42,12 +42,12 @@ class AlternativesController {
                     res.status(501).json(response);
                     return;
                 }
-                throw error;
+                next(error);
             }
         }
         catch (error) {
             logger_1.logger.error('Alternative discovery error', { error: error.message });
-            throw error;
+            next(error);
         }
     }
 }

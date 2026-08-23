@@ -28,8 +28,8 @@ export const createApp = (): express.Application => {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-  app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  app.get('/api/health', (req, res) => {
+    res.json({ success: true, service: 'scamcheck-backend', status: 'healthy' });
   });
 
   app.get('/api', (req, res) => {

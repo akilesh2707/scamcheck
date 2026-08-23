@@ -5,7 +5,7 @@ const mlClient_service_1 = require("../services/mlClient.service");
 const logger_1 = require("../utils/logger");
 const errors_1 = require("../utils/errors");
 class SkillGapController {
-    async analyze(req, res) {
+    async analyze(req, res, next) {
         try {
             const { opportunityId, requiredSkills, userSkills } = req.body;
             if (!requiredSkills || !Array.isArray(requiredSkills) || requiredSkills.length === 0) {
@@ -33,12 +33,12 @@ class SkillGapController {
                     res.status(501).json(response);
                     return;
                 }
-                throw error;
+                next(error);
             }
         }
         catch (error) {
             logger_1.logger.error('Skill gap analysis error', { error: error.message });
-            throw error;
+            next(error);
         }
     }
 }

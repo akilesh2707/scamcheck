@@ -141,7 +141,7 @@ export class AnalysisService {
     let paymentVerification: PaymentVerification;
     let suitabilityAnalysis: SuitabilityAnalysis;
     let alternatives: Alternative[] = [];
-    let valueAnalysis: ValueAnalysis;
+
 
     try {
       const mlRisk = await mlClient.analyzeRisk(extractedOpportunity);
@@ -208,7 +208,7 @@ export class AnalysisService {
       alternatives = [];
     }
 
-    valueAnalysis = {
+    const valueAnalysis: ValueAnalysis = {
       score: null,
       potentialSaving: 0,
       alternatives,
@@ -260,7 +260,7 @@ export class AnalysisService {
     
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
     const urlRegex = /https?:\/\/[^\s]+/g;
-    const phoneRegex = /[\+]?[(]?[0-9]{1,3}[)]?[-\s\.]?[(]?[0-9]{1,3}[)]?[-\s\.]?[0-9]{4,6}/g;
+    const phoneRegex = /[+]?[(]?[0-9]{1,3}[)]?[-\s.]?[(]?[0-9]{1,3}[)]?[-\s.]?[0-9]{4,6}/g;
     
     const emails = text.match(emailRegex) || [];
     const urls = text.match(urlRegex) || [];

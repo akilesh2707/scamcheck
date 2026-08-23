@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.websiteController = exports.WebsiteController = void 0;
 class WebsiteController {
-    async analyze(req, res) {
+    async analyze(req, res, next) {
         try {
             const { url } = req.body;
             if (!url) {
@@ -20,7 +20,7 @@ class WebsiteController {
             res.status(501).json(response);
         }
         catch (error) {
-            throw error;
+            next(error);
         }
     }
 }

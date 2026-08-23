@@ -32,40 +32,122 @@ backend/
 
 ## API Endpoints
 
-### Analysis
-- `POST /api/analyze` - Main analysis endpoint (text input for Phase 1)
-- `GET /api/analyze/history` - User's analysis history
-- `GET /api/analyze/:id` - Get specific report
+### 1. Health Check
+**Endpoint**: `GET /api/health`
+**Description**: Basic server health check that doesn't depend on DB/Redis.
+**Request**: None
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "service": "scamcheck-backend",
+  "status": "healthy"
+}
+```
+**Auth**: None
 
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Get current user
-- `PUT /api/auth/profile` - Update profile
-- `PUT /api/auth/user-profile` - Update user profile (skills, education, etc.)
-- `GET /api/auth/user-profile` - Get user profile
+### 2. Opportunity Analysis (Main Flow)
+**Endpoint**: `POST /api/analyze`
+**Description**: Submits an opportunity (text or url) for full ScamCheck analysis.
+**Request**:
+```json
+{
+  "inputType": "text" | "url",
+  "text": "Job description here...", // Required if inputType=text
+  "url": "https://...",            // Required if inputType=url
+  "userProfile": {}                // Optional
+}
+```
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "id": "report-uuid",
+    "createdAt": "2024-...",
+    "opportunity": { ... },
+    "risk": {
+      "score": 82,
+      "level": "HIGH",
+      "indicators": []
+    },
+    "credibility": {
+      "score": 61,
+      "website": { ... },
+      "company": { ... },
+      "evidence": []
+    },
+    "payment": {
+      "required": true,
+      "status": "NOT_FOUND",
+      "confidence": 0.5,
+      "amount": 500,
+      "evidence": []
+    },
+    "suitability": { ... },
+    "alternatives": [],
+    "value": { ... },
+    "recommendation": {
+      "decision": "CAUTION",
+      "reasons": [],
+      "nextSteps": []
+    }
+  }
+}
+```
+**Error Response** (400 - Validation):
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request data",
+    "details": []
+  }
+}
+```
+**Auth**: Optional
 
-### Suitability
-- `POST /api/analyze/suitability` - Analyze user-opportunity fit
+### 3. Get Analysis Report
+**Endpoint**: `GET /api/analyze/:id`
+**Description**: Fetch an existing report by ID.
+**Request**: None (Path param `:id`)
+**Success Response** (200): Same as `POST /api/analyze` data object.
+**Error Response** (404):
+```json
+{
+  "success": false,
+  "error": { "code": "NOT_FOUND", "message": "Report not found" }
+}
+```
+**Auth**: Optional
 
-### Skill Gap
-- `POST /api/analyze/skill-gap` - Identify missing skills
+### 4. Get Analysis History
+**Endpoint**: `GET /api/analyze/history`
+**Description**: Get paginated history of reports for the authenticated user.
+**Request**: `?page=1&limit=20` (Query params)
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "reports": [...],
+    "total": 5,
+    "page": 1,
+    "totalPages": 1
+  }
+}
+```
+**Auth**: Required (Bearer JWT)
 
-### Alternatives
-- `POST /api/find/alternatives` - Find alternative opportunities
-
-### Payment Verification
-- `POST /api/verify/payment` - Verify payment claims
-
-### Website Analysis
-- `POST /api/website/analyze` - Analyze website credibility
-
-### Company Verification
-- `POST /api/company/verify` - Verify company legitimacy
-
-### Reports
-- `GET /api/report/:id` - Get report by ID
-- `GET /api/report` - Get user's reports (paginated)
+### Other Endpoints
+- `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`
+- `POST /api/analyze/suitability` (Auth Optional)
+- `POST /api/analyze/skill-gap` (Auth Optional)
+- `POST /api/find/alternatives` (Auth Optional)
+- `POST /api/verify/payment` (Auth Optional)
+- `POST /api/website/analyze` (Auth Optional)
+- `POST /api/company/verify` (Auth Optional)
 
 ## Development
 

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
-import { AppError } from './error.middleware';
+import { AppError } from '../utils/errors';
 import { User } from '../models/User';
 
 export interface AuthenticatedRequest extends Request {
