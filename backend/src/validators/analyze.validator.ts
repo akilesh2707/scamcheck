@@ -19,6 +19,7 @@ export const analyzeSchema = z.object({
     (data) => {
       if (data.inputType === 'text') return !!data.text && data.text.length > 0;
       if (data.inputType === 'url') return !!data.url && data.url.length > 0;
+      // Note: for screenshot, file presence is validated by multer/controller
       return true;
     },
     {

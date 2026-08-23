@@ -1,6 +1,8 @@
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel
 from fastapi import APIRouter
+from app.utils.llm import call_llm, is_negated
+import re
 
 router = APIRouter()
 
@@ -33,54 +35,117 @@ class PaymentVerifyResponse(BaseModel):
     confidence: float
     evidence: List[Dict[str, Any]] = []
 
-@router.post("/verify", response_model=PaymentVerifyResponse)
-async def verify_payment(request: PaymentVerifyRequest):
+def verify_payment_deterministic(request: PaymentVerifyRequest) -> PaymentVerifyResponse:
     opportunity = request.opportunity
-    fees = opportunity.fees or {}
+    text = (opportunity.rawText or "").lower()
     
-    has_fees = any(v > 0 for v in fees.values() if isinstance(v, (int, float)))
-    total_fees = sum(v for v in fees.values() if isinstance(v, (int, float))) if has_fees else 0
+    # We re-extract fees here to check for negations robustly
+    fee_patterns = ["registration fee", "processing fee", "security deposit", "placement fee", "certificate fee", "training fee", "course fee"]
     
+    fee_requested = False
+    fee_negated = False
+    total_amount = 0
+    
+    for pattern in fee_patterns:
+        if pattern in text:
+            if is_negated(text, pattern) or is_negated(text, "fee"):
+                fee_negated = True
+            else:
+                fee_requested = True
+    if fee_requested:
+        match = re.search(r"([₹$]\s?[\d,]+)", text, re.IGNORECASE)
+        if match:
+            try:
+                amt = int(match.group(1).replace("₹", "").replace("$", "").replace(",", ""))
+                total_amount = amt
+            except:
+                pass
+
     evidence = []
-    if has_fees:
+    
+    if fee_requested:
         evidence.append({
-            "claim": "Payment requirement detected",
-            "status": "VERIFIED",
-            "details": f"Fees: {fees}"
+            "claim": "Payment requirement detected in text",
+            "status": "OBSERVED",
+            "details": f"Amount detected: {total_amount}"
         })
+        status = "NEEDS_VERIFICATION"
+        required = True
+    elif fee_negated:
+        evidence.append({
+            "claim": "Payment explicitly negated in text",
+            "status": "OBSERVED",
+            "details": "The text states that no fee is required."
+        })
+        status = "NEGATED"
+        required = False
     else:
         evidence.append({
             "claim": "Payment requirement",
             "status": "NOT_FOUND",
             "details": "No payment mentioned in opportunity"
         })
-    
-    claimed_amount = request.claimedAmount
-    if claimed_amount and has_fees:
-        if abs(claimed_amount - total_fees) < 1:
-            evidence.append({
-                "claim": "Claimed amount matches detected fees",
-                "status": "VERIFIED",
-                "details": f"Claimed: {claimed_amount}, Detected: {total_fees}"
-            })
-        else:
-            evidence.append({
-                "claim": "Claimed amount contradicts detected fees",
-                "status": "CONTRADICTED",
-                "details": f"Claimed: {claimed_amount}, Detected: {total_fees}"
-            })
-    
-    status = "NOT_FOUND"
-    if has_fees:
-        if claimed_amount and abs(claimed_amount - total_fees) >= 1:
-            status = "CONTRADICTED"
-        else:
-            status = "VERIFIED"
-    
+        status = "NOT_FOUND"
+        required = False
+
     return PaymentVerifyResponse(
-        required=has_fees,
-        amount=total_fees if has_fees else None,
+        required=required,
+        amount=total_amount if fee_requested else None,
         status=status,
-        confidence=0.7 if has_fees else 0.5,
+        confidence=0.8 if (fee_requested or fee_negated) else 0.5,
         evidence=evidence
     )
+
+def verify_payment_with_llm(request: PaymentVerifyRequest) -> PaymentVerifyResponse:
+    text = request.opportunity.rawText or ""
+    system_prompt = """You are an expert at identifying if an opportunity requires payment.
+    Read the text and determine if a fee/payment is genuinely requested, explicitly negated (e.g. 'no fee is required'), or not mentioned.
+    Return JSON:
+    {
+      "required": boolean,
+      "amount": number (or null),
+      "status": "NEEDS_VERIFICATION" (if requested), "NEGATED" (if explicitly no fee), "NOT_FOUND" (if not mentioned),
+      "confidence": number (0.0 to 1.0),
+      "evidence_claim": "string",
+      "evidence_details": "string"
+    }
+    Note: A requested payment is NEVER 'VERIFIED' unless cross-referenced. Just mark it 'NEEDS_VERIFICATION' and 'OBSERVED'.
+    """
+    
+    try:
+        data = call_llm(system_prompt, text)
+        status = data.get("status", "NOT_FOUND")
+        
+        # Protect against invalid statuses
+        if status not in ["NEEDS_VERIFICATION", "NEGATED", "NOT_FOUND", "UNCERTAIN"]:
+            status = "UNCERTAIN"
+            
+        evidence = [{
+            "claim": data.get("evidence_claim", "Payment analysis"),
+            "status": "OBSERVED" if status in ["NEEDS_VERIFICATION", "NEGATED"] else "NOT_FOUND",
+            "details": data.get("evidence_details", "")
+        }]
+        
+        return PaymentVerifyResponse(
+            required=data.get("required", False),
+            amount=data.get("amount"),
+            status=status,
+            confidence=data.get("confidence", 0.5),
+            evidence=evidence
+        )
+    except Exception as e:
+        print(f"LLM payment verification failed: {e}")
+        return verify_payment_deterministic(request)
+
+
+@router.post("/verify", response_model=PaymentVerifyResponse)
+async def verify_payment(request: PaymentVerifyRequest):
+    try:
+        from app.config import settings
+        if settings.LLM_API_KEY:
+            return verify_payment_with_llm(request)
+        else:
+            return verify_payment_deterministic(request)
+    except Exception as e:
+        print(f"Payment verification error: {e}")
+        return verify_payment_deterministic(request)

@@ -3,6 +3,8 @@ import { analysisService } from '../services/analysis.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ApiResponse } from '../types/api';
 import { logger } from '../utils/logger';
+import { mlClient } from '../services/mlClient.service';
+import { fetchUrlSafely, FetchError } from '../utils/urlFetcher';
 
 export class AnalyzeController {
   async analyze(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
@@ -20,7 +22,65 @@ export class AnalyzeController {
           res.status(400).json(response);
           return;
         }
-        result = await analysisService.analyzeText(text, userId);
+        result = await analysisService.analyzeText(text, userId, userProfile);
+      } else if (inputType === 'url') {
+        if (!url || url.trim().length === 0) {
+          const response: ApiResponse<null> = {
+            success: false,
+            error: { code: 'INVALID_INPUT', message: 'URL is required for url input type' },
+          };
+          res.status(400).json(response);
+          return;
+        }
+
+        try {
+          const fetchResult = await fetchUrlSafely(url);
+          // Prepend title and URL context so it gets extracted
+          const combinedText = `[URL: ${url}]\n[Title: ${fetchResult.title}]\n\n${fetchResult.text}`;
+          result = await analysisService.analyzeText(combinedText, userId, userProfile);
+        } catch (fetchError: any) {
+          const response: ApiResponse<null> = {
+            success: false,
+            error: { 
+              code: fetchError.code || 'URL_FETCH_FAILED', 
+              message: fetchError.message || 'Failed to fetch the provided URL'
+            },
+          };
+          res.status(400).json(response);
+          return;
+        }
+      } else if (inputType === 'screenshot') {
+        if (!req.file) {
+          const response: ApiResponse<null> = {
+            success: false,
+            error: { code: 'INVALID_INPUT', message: 'Image file is required for screenshot input type' },
+          };
+          res.status(400).json(response);
+          return;
+        }
+
+        try {
+          const fileBase64 = req.file.buffer.toString('base64');
+          const mimeType = req.file.mimetype;
+          const ocrResult = await mlClient.ocrExtract(fileBase64, mimeType);
+          
+          if (!ocrResult.text || ocrResult.text.trim().length === 0) {
+            throw new Error('OCR failed to extract text from the image');
+          }
+          
+          const combinedText = `[Source: screenshot_ocr]\n\n${ocrResult.text}`;
+          result = await analysisService.analyzeText(combinedText, userId, userProfile);
+        } catch (error: any) {
+          const response: ApiResponse<null> = {
+            success: false,
+            error: { 
+              code: error.code || 'OCR_FAILED', 
+              message: error.message || 'Failed to extract text from screenshot'
+            },
+          };
+          res.status(400).json(response);
+          return;
+        }
       } else {
         const response: ApiResponse<null> = {
           success: false,

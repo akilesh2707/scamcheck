@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import { mlClient } from './mlClient.service';
 import { Opportunity } from '../models/Opportunity';
 import { Report } from '../models/Report';
@@ -15,6 +15,7 @@ import {
   RiskLevel,
 } from '../types/report';
 import { EvidenceStatus, RiskIndicator, Evidence } from '../types/evidence';
+import { UserProfile } from '../types/api';
 import { logger } from '../utils/logger';
 
 const RISK_WEIGHTS = {
@@ -46,48 +47,48 @@ function generateRecommendation(
   const reasons: string[] = [];
   const nextSteps: string[] = [];
 
-  if (risk.level === 'VERY_HIGH' || risk.level === 'HIGH') {
-    reasons.push('Multiple high-risk indicators detected');
-    nextSteps.push('Do not proceed without thorough independent verification');
+  // Matrix:
+  // IF Risk == VERY_HIGH OR Payment == CONTRADICTED -> AVOID
+  // IF Risk == HIGH OR Credibility.website.status == CONTRADICTED -> CAUTION
+  // IF Risk == MEDIUM OR Payment == NEEDS_VERIFICATION -> VERIFY_BEFORE_PROCEEDING
+  // ELSE -> SAFE
+
+  if (risk.level === 'VERY_HIGH') {
+    reasons.push('Critical high-risk indicators detected.');
+    nextSteps.push('Do not proceed under any circumstances.');
   }
 
   if (payment.required && payment.status === 'CONTRADICTED') {
-    reasons.push('Payment information contradicts official sources');
-    nextSteps.push('Do not make the requested payment');
+    reasons.push('Payment requirement contradicts known legitimate sources.');
+    nextSteps.push('Do not make the requested payment.');
   }
 
-  if (payment.required && payment.status === 'UNKNOWN') {
-    reasons.push('Upfront payment requested but could not be independently verified');
-    nextSteps.push('Verify payment requirements through official channels');
+  if (risk.level === 'HIGH') {
+    reasons.push('High-risk indicators observed in the opportunity description.');
+    nextSteps.push('Extreme caution advised. Verify all claims independently.');
   }
 
-  if (risk.indicators.some((i) => i.code === 'URGENCY_PRESSURE')) {
-    reasons.push('Urgency pressure tactics detected');
-    nextSteps.push('Take time to research independently; legitimate opportunities rarely require immediate decisions');
+  const credStatus = credibility.evidence?.find(e => e.claim === 'Page Accessibility')?.status;
+  if (credStatus === 'CONTRADICTED' || (credibility.website.score !== undefined && credibility.website.score < 40)) {
+    reasons.push('Website or organization credibility is highly suspect.');
+    nextSteps.push('Verify the organization through its official known channels, not the provided links.');
   }
 
-  if (risk.indicators.some((i) => i.code === 'SENSITIVE_INFO_REQUEST')) {
-    reasons.push('Request for sensitive personal/financial information');
-    nextSteps.push('Never share OTP, banking credentials, or unnecessary identity documents');
+  if (risk.level === 'MEDIUM') {
+    reasons.push('Some risk indicators are present that warrant further investigation.');
+    nextSteps.push('Do not share sensitive information until verified.');
   }
 
-  if (credibility.website.score !== undefined && credibility.website.score < 40) {
-    reasons.push('Website credibility concerns');
-    nextSteps.push('Verify the organization through its official website and contact channels');
+  if (payment.required && (payment.status === 'NEEDS_VERIFICATION' || payment.status === 'UNCERTAIN')) {
+    reasons.push('An upfront payment is requested but could not be independently verified as legitimate.');
+    nextSteps.push('Verify if this fee is standard practice for this organization before paying.');
   }
 
-  if (reasons.length === 0) {
-    if (risk.level === 'LOW' && credibility.website.score !== undefined && credibility.website.score > 70) {
-      return {
-        decision: 'SAFE_TO_EXPLORE',
-        reasons: ['Low risk indicators', 'Credible website and organization'],
-        nextSteps: ['Proceed with standard due diligence'],
-      };
-    }
+  if (risk.level === 'LOW' && reasons.length === 0) {
     return {
-      decision: 'VERIFY_FIRST',
-      reasons: ['Some concerns identified but no critical red flags'],
-      nextSteps: ['Verify organization details independently', 'Research reviews and testimonials'],
+      decision: 'SAFE_TO_EXPLORE',
+      reasons: ['No major risk indicators detected in the provided text.'],
+      nextSteps: ['Proceed with standard due diligence.'],
     };
   }
 
@@ -99,8 +100,16 @@ function generateRecommendation(
     };
   }
 
+  if (risk.level === 'HIGH' || credStatus === 'CONTRADICTED') {
+    return {
+      decision: 'CAUTION',
+      reasons,
+      nextSteps,
+    };
+  }
+
   return {
-    decision: 'CAUTION',
+    decision: 'VERIFY_FIRST',
     reasons,
     nextSteps,
   };
@@ -116,7 +125,7 @@ function createDefaultEvidence(claim: string, status: EvidenceStatus, details?: 
 }
 
 export class AnalysisService {
-  async analyzeText(text: string, userId?: string): Promise<AnalysisReport> {
+  async analyzeText(text: string, userId?: string, userProfile?: UserProfile): Promise<AnalysisReport> {
     logger.info('Starting analysis', { textLength: text.length, userId });
 
     let extractedOpportunity: ExtractedOpportunity;
@@ -157,12 +166,20 @@ export class AnalysisService {
     }
 
     try {
-      const mlCred = await mlClient.analyzeCredibility(extractedOpportunity);
+      const mlCred: any = await mlClient.analyzeCredibility(extractedOpportunity);
       credibilityAnalysis = {
-        score: mlCred.score,
-        website: mlCred.website,
-        company: mlCred.company,
-        evidence: mlCred.evidence.map((e) => createDefaultEvidence('', e)),
+        score: mlCred.score || 50,
+        website: {
+          hasHttps: mlCred.hasHttps || false,
+          hasPrivacyPolicy: mlCred.hasPrivacyPolicy || false,
+          hasTerms: mlCred.hasTerms || false,
+          hasRefundPolicy: mlCred.hasRefundPolicy || false,
+          hasContactInfo: mlCred.hasContactInfo || false,
+          score: mlCred.score || 50,
+          evidence: mlCred.evidence || [],
+        },
+        company: { emailDomainMatch: false, applicationDomainMatch: false, contactConsistency: false, evidence: [] },
+        evidence: mlCred.evidence ? mlCred.evidence.map((e: any) => createDefaultEvidence('', e)) : [],
       };
     } catch (error) {
       logger.warn('ML credibility analysis failed', { error: (error as Error).message });
@@ -188,7 +205,7 @@ export class AnalysisService {
     }
 
     try {
-      const mlSuitability = await mlClient.analyzeSuitability(extractedOpportunity, {});
+      const mlSuitability = await mlClient.analyzeSuitability(extractedOpportunity, userProfile || {});
       suitabilityAnalysis = mlSuitability;
     } catch (error) {
       logger.warn('ML suitability analysis failed', { error: (error as Error).message });
@@ -201,7 +218,7 @@ export class AnalysisService {
     }
 
     try {
-      const mlAlternatives = await mlClient.findAlternatives(extractedOpportunity, {});
+      const mlAlternatives = await mlClient.findAlternatives(extractedOpportunity, userProfile || {});
       alternatives = mlAlternatives.alternatives;
     } catch (error) {
       logger.warn('ML alternatives failed', { error: (error as Error).message });
@@ -221,21 +238,7 @@ export class AnalysisService {
       evidenceLabels[indicator.code] = createDefaultEvidence(indicator.explanation, indicator.evidence, indicator.details);
     });
 
-    const report: AnalysisReport = {
-      opportunity: extractedOpportunity,
-      risk: riskAnalysis,
-      credibility: credibilityAnalysis,
-      payment: paymentVerification,
-      suitability: suitabilityAnalysis,
-      alternatives,
-      value: valueAnalysis,
-      recommendation,
-      evidenceLabels,
-      createdAt: new Date().toISOString(),
-      id: uuidv4(),
-    };
-
-    await Report.create({
+    const reportDoc = await Report.create({
       userId,
       opportunityId: opportunityDoc._id,
       inputType: 'text',
@@ -250,6 +253,20 @@ export class AnalysisService {
       recommendation,
       evidenceLabels,
     });
+
+    const report: AnalysisReport = {
+      opportunity: extractedOpportunity,
+      risk: riskAnalysis,
+      credibility: credibilityAnalysis,
+      payment: paymentVerification,
+      suitability: suitabilityAnalysis,
+      alternatives,
+      value: valueAnalysis,
+      recommendation,
+      evidenceLabels,
+      createdAt: new Date().toISOString(),
+      id: reportDoc._id.toString(),
+    };
 
     logger.info('Analysis complete', { reportId: report.id, riskLevel: riskAnalysis.level });
     return report;
@@ -459,12 +476,12 @@ export class AnalysisService {
     return {
       required: hasFees ?? false,
       amount: hasFees ? totalFees : null,
-      status: 'NOT_FOUND' as PaymentVerification['status'],
+      status: hasFees ? 'NEEDS_VERIFICATION' : 'NOT_FOUND',
       confidence: 0.5,
       evidence: [
         {
-          claim: 'Payment requirement',
-          status: hasFees ? 'VERIFIED' : 'NOT_FOUND',
+          claim: 'Payment requirement in text',
+          status: hasFees ? 'OBSERVED' : 'NOT_FOUND',
           details: hasFees ? `Fees detected: ${JSON.stringify(fees)}` : 'No payment mentioned',
           checkedAt: new Date().toISOString(),
         },

@@ -67,30 +67,11 @@ describe('API Endpoints', () => {
       expect(response.body.error.code).toBe('VALIDATION_ERROR');
     });
 
-    it('should return 501 for unsupported input types', async () => {
-      const response = await request(app)
-        .post('/api/analyze')
-        .send({ inputType: 'screenshot', file: 'base64data' })
-        .expect(501);
-
-      expect(response.body.success).toBe(false);
-      expect(response.body.error.code).toBe('NOT_IMPLEMENTED');
-    });
 
     it('should return 501 for pdf input type', async () => {
       const response = await request(app)
         .post('/api/analyze')
         .send({ inputType: 'pdf', file: 'base64data' })
-        .expect(501);
-
-      expect(response.body.success).toBe(false);
-      expect(response.body.error.code).toBe('NOT_IMPLEMENTED');
-    });
-
-    it('should return 501 for url input type', async () => {
-      const response = await request(app)
-        .post('/api/analyze')
-        .send({ inputType: 'url', url: 'https://example.com' })
         .expect(501);
 
       expect(response.body.success).toBe(false);
@@ -252,7 +233,7 @@ describe('API Endpoints', () => {
 });
 
 describe('Evidence Framework', () => {
-  const evidenceStatuses = ['VERIFIED', 'LIKELY', 'UNCERTAIN', 'CONTRADICTED', 'NOT_FOUND', 'NOT_IMPLEMENTED'];
+  const evidenceStatuses = ['OBSERVED', 'VERIFIED', 'LIKELY', 'UNCERTAIN', 'CONTRADICTED', 'NOT_FOUND', 'NOT_IMPLEMENTED'];
 
   evidenceStatuses.forEach(status => {
     it(`should handle ${status} evidence status`, () => {

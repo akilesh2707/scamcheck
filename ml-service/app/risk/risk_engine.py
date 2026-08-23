@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ValidationError
 from fastapi import APIRouter
+from app.utils.llm import call_llm, is_negated
 
 router = APIRouter()
 
@@ -53,7 +54,7 @@ RISK_WEIGHTS = {
 URGENCY_PATTERNS = [
     "limited seats", "act now", "expires today", "pay immediately", 
     "last chance", "hurry", "deadline", "only", "seats left", "few seats",
-    "limited time", "offer ends", "closing soon", "urgent"
+    "limited time", "offer ends", "closing soon", "urgent", "within"
 ]
 
 SENSITIVE_PATTERNS = [
@@ -83,14 +84,14 @@ def calculate_risk_level(score: int) -> str:
         return "HIGH"
     return "VERY_HIGH"
 
-def analyze_opportunity_risk(opportunity: Opportunity) -> RiskAnalysisResponse:
+def analyze_risk_deterministic(opportunity: Opportunity) -> RiskAnalysisResponse:
     indicators = []
     total_score = 0
     text = (opportunity.rawText or "").lower()
     
-    org_name = (opportunity.organization or {}).get("name", "").lower()
-    org_email = (opportunity.organization or {}).get("email", "").lower()
-    org_website = (opportunity.organization or {}).get("website", "").lower()
+    org_name = ((opportunity.organization or {}).get("name") or "").lower()
+    org_email = ((opportunity.organization or {}).get("email") or "").lower()
+    org_website = ((opportunity.organization or {}).get("website") or "").lower()
     
     fees = opportunity.fees or {}
     has_fees = any(v > 0 for v in fees.values() if isinstance(v, (int, float)))
@@ -101,30 +102,34 @@ def analyze_opportunity_risk(opportunity: Opportunity) -> RiskAnalysisResponse:
             title="Payment requested",
             explanation="The opportunity requests an upfront payment",
             points=RISK_WEIGHTS["PAYMENT_REQUEST"],
-            evidence="VERIFIED",
+            evidence="OBSERVED",
             details=f"Fees found: {fees}"
         ))
         total_score += RISK_WEIGHTS["PAYMENT_REQUEST"]
     
-    if any(pattern in text for pattern in URGENCY_PATTERNS):
-        indicators.append(RiskIndicator(
-            code="URGENCY_PRESSURE",
-            title="Urgency pressure",
-            explanation="The opportunity uses urgency language to pressure quick decisions",
-            points=RISK_WEIGHTS["URGENCY_PRESSURE"],
-            evidence="VERIFIED",
-        ))
-        total_score += RISK_WEIGHTS["URGENCY_PRESSURE"]
+    for pattern in URGENCY_PATTERNS:
+        if pattern in text and not is_negated(text, pattern):
+            indicators.append(RiskIndicator(
+                code="URGENCY_PRESSURE",
+                title="Urgency pressure",
+                explanation="The opportunity uses urgency language to pressure quick decisions",
+                points=RISK_WEIGHTS["URGENCY_PRESSURE"],
+                evidence="OBSERVED",
+            ))
+            total_score += RISK_WEIGHTS["URGENCY_PRESSURE"]
+            break
     
-    if any(pattern in text for pattern in SENSITIVE_PATTERNS):
-        indicators.append(RiskIndicator(
-            code="SENSITIVE_INFO_REQUEST",
-            title="Sensitive information requested",
-            explanation="The opportunity requests sensitive personal or financial information",
-            points=RISK_WEIGHTS["SENSITIVE_INFO_REQUEST"],
-            evidence="VERIFIED",
-        ))
-        total_score += RISK_WEIGHTS["SENSITIVE_INFO_REQUEST"]
+    for pattern in SENSITIVE_PATTERNS:
+        if pattern in text and not is_negated(text, pattern):
+            indicators.append(RiskIndicator(
+                code="SENSITIVE_INFO_REQUEST",
+                title="Sensitive information requested",
+                explanation="The opportunity requests sensitive personal or financial information",
+                points=RISK_WEIGHTS["SENSITIVE_INFO_REQUEST"],
+                evidence="OBSERVED",
+            ))
+            total_score += RISK_WEIGHTS["SENSITIVE_INFO_REQUEST"]
+            break
     
     stipend = opportunity.stipend or {}
     if stipend.get("amount", 0) > 100000:
@@ -133,19 +138,21 @@ def analyze_opportunity_risk(opportunity: Opportunity) -> RiskAnalysisResponse:
             title="Unrealistic compensation",
             explanation="The claimed compensation is unusually high for the role type",
             points=RISK_WEIGHTS["UNREALISTIC_COMPENSATION"],
-            evidence="LIKELY",
+            evidence="OBSERVED",
         ))
         total_score += RISK_WEIGHTS["UNREALISTIC_COMPENSATION"]
     
-    if any(pattern in text for pattern in GUARANTEE_PATTERNS):
-        indicators.append(RiskIndicator(
-            code="GUARANTEED_PLACEMENT",
-            title="Guaranteed placement claim",
-            explanation="The opportunity makes unrealistic guarantees about job placement",
-            points=RISK_WEIGHTS["GUARANTEED_PLACEMENT"],
-            evidence="VERIFIED",
-        ))
-        total_score += RISK_WEIGHTS["GUARANTEED_PLACEMENT"]
+    for pattern in GUARANTEE_PATTERNS:
+        if pattern in text and not is_negated(text, pattern):
+            indicators.append(RiskIndicator(
+                code="GUARANTEED_PLACEMENT",
+                title="Guaranteed placement claim",
+                explanation="The opportunity makes unrealistic guarantees about job placement",
+                points=RISK_WEIGHTS["GUARANTEED_PLACEMENT"],
+                evidence="OBSERVED",
+            ))
+            total_score += RISK_WEIGHTS["GUARANTEED_PLACEMENT"]
+            break
     
     if org_email and org_name:
         email_domain = org_email.split("@")[-1] if "@" in org_email else ""
@@ -157,19 +164,21 @@ def analyze_opportunity_risk(opportunity: Opportunity) -> RiskAnalysisResponse:
                 title="Email/domain mismatch",
                 explanation="Contact email domain does not match organization website domain",
                 points=RISK_WEIGHTS["IDENTITY_MISMATCH"],
-                evidence="LIKELY",
+                evidence="OBSERVED",
             ))
             total_score += RISK_WEIGHTS["IDENTITY_MISMATCH"]
     
-    if any(pattern in text for pattern in SUSPICIOUS_CLAIMS):
-        indicators.append(RiskIndicator(
-            code="SUSPICIOUS_CLAIMS",
-            title="Suspicious claims",
-            explanation="The opportunity makes claims commonly associated with scams",
-            points=RISK_WEIGHTS["SUSPICIOUS_CLAIMS"],
-            evidence="LIKELY",
-        ))
-        total_score += RISK_WEIGHTS["SUSPICIOUS_CLAIMS"]
+    for pattern in SUSPICIOUS_CLAIMS:
+        if pattern in text and not is_negated(text, pattern):
+            indicators.append(RiskIndicator(
+                code="SUSPICIOUS_CLAIMS",
+                title="Suspicious claims",
+                explanation="The opportunity makes claims commonly associated with scams",
+                points=RISK_WEIGHTS["SUSPICIOUS_CLAIMS"],
+                evidence="OBSERVED",
+            ))
+            total_score += RISK_WEIGHTS["SUSPICIOUS_CLAIMS"]
+            break
     
     final_score = min(total_score, 100)
     level = calculate_risk_level(final_score)
@@ -181,6 +190,70 @@ def analyze_opportunity_risk(opportunity: Opportunity) -> RiskAnalysisResponse:
         weights=RISK_WEIGHTS
     )
 
+def analyze_risk_with_llm(opportunity: Opportunity) -> RiskAnalysisResponse:
+    text = opportunity.rawText or ""
+    system_prompt = f"""You are an expert fraud analyst. Review the following text for risk indicators.
+    Be extremely careful to distinguish between POSITIVE REQUESTS and NEGATED REQUESTS.
+    For example, "We will never ask for your OTP" is a NEGATED REQUEST and should NOT be flagged as SENSITIVE_INFO_REQUEST.
+    
+    Check for these specific risk codes: {', '.join(RISK_WEIGHTS.keys())}
+    
+    Return a JSON object exactly matching:
+    {{
+      "indicators": [
+        {{
+          "code": "string (from allowed list)",
+          "title": "string",
+          "explanation": "string",
+          "points": number (from weights),
+          "evidence": "OBSERVED",
+          "details": "string"
+        }}
+      ]
+    }}
+    Only include ACTUAL REQUESTS and genuine risks. If none, return empty indicators.
+    """
+    
+    try:
+        data = call_llm(system_prompt, text)
+        indicators_data = data.get("indicators", [])
+        
+        indicators = []
+        total_score = 0
+        for ind in indicators_data:
+            if ind.get("code") in RISK_WEIGHTS:
+                points = RISK_WEIGHTS[ind["code"]]
+                indicators.append(RiskIndicator(
+                    code=ind["code"],
+                    title=ind.get("title", ind["code"]),
+                    explanation=ind.get("explanation", ""),
+                    points=points,
+                    evidence="OBSERVED",
+                    details=ind.get("details", "")
+                ))
+                total_score += points
+                
+        final_score = min(total_score, 100)
+        level = calculate_risk_level(final_score)
+        
+        return RiskAnalysisResponse(
+            score=final_score,
+            level=level,
+            indicators=indicators,
+            weights=RISK_WEIGHTS
+        )
+    except Exception as e:
+        print(f"LLM risk analysis failed: {e}")
+        return analyze_risk_deterministic(opportunity)
+
 @router.post("/analyze", response_model=RiskAnalysisResponse)
 async def analyze_risk(request: RiskAnalysisRequest):
-    return analyze_opportunity_risk(request.opportunity)
+    try:
+        from app.config import settings
+        if settings.LLM_API_KEY:
+            return analyze_risk_with_llm(request.opportunity)
+        else:
+            return analyze_risk_deterministic(request.opportunity)
+    except Exception as e:
+        print(f"Risk analysis error: {e}")
+        return analyze_risk_deterministic(request.opportunity)

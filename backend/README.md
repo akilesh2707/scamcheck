@@ -202,13 +202,16 @@ cd ml-service
 pytest
 ```
 
-## Phase 1 Status
+## Phase 1 Status (ScamCheck MVP)
 
-✅ Core analysis pipeline with risk engine
-✅ Text input analysis
-✅ Rule-based risk detection (payment, urgency, sensitive info, unrealistic compensation, guaranteed placement, identity mismatch)
-✅ Explainable risk indicators with evidence
+✅ Core analysis pipeline with hybrid LLM/deterministic risk engine
+✅ Text and URL input analysis (with SSRF protection & safe fetching)
+✅ Context-aware risk detection (payment, urgency, sensitive info, unrealistic compensation, guaranteed placement, identity mismatch)
+✅ Deterministic negation window handling (reduces false positives)
+✅ Explainable risk indicators with evidence states (OBSERVED, VERIFIED, CONTRADICTED, etc.)
 ✅ Risk scoring (0-100) with levels (LOW to VERY_HIGH)
+✅ Payment verification with negation handling
+✅ Real Website credibility analysis (HTTP/HTTPS, Accessibility, Policy checks)
 ✅ Recommendation engine (SAFE_TO_EXPLORE, CAUTION, VERIFY_FIRST, AVOID_PAYMENT, INSUFFICIENT_EVIDENCE)
 ✅ MongoDB persistence
 ✅ JWT authentication (optional for analysis)
@@ -217,11 +220,9 @@ pytest
 
 ## Next Phases
 
-- Screenshot/PDF/URL input support
+- Screenshot/PDF input support
 - OCR integration
-- Website credibility analysis
-- Company verification
-- Payment verification against official sources
+- Company verification via external registries
 - Suitability analysis with user profiles
 - Skill gap analysis
 - Curriculum extraction

@@ -1,6 +1,8 @@
 from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ValidationError
 from fastapi import APIRouter
+import re
+from app.utils.llm import call_llm
 
 router = APIRouter()
 
@@ -44,12 +46,9 @@ class ExtractRequest(BaseModel):
 class ExtractResponse(BaseModel):
     opportunity: ExtractedOpportunity
 
-@router.post("/opportunity", response_model=ExtractResponse)
-async def extract_opportunity(request: ExtractRequest):
-    text = request.text
+def extract_deterministic(text: str) -> ExtractedOpportunity:
     lower_text = text.lower()
     
-    import re
     email_regex = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
     url_regex = r"https?://[^\s]+"
     phone_regex = r"[\+]?[(]?[0-9]{1,3}[)]?[-\s\.]?[(]?[0-9]{1,3}[)]?[-\s\.]?[0-9]{4,6}"
@@ -63,7 +62,7 @@ async def extract_opportunity(request: ExtractRequest):
         org_name = emails[0].split("@")[1].split(".")[0].title()
     
     role = "Not specified"
-    role_keywords = ["intern", "developer", "engineer", "analyst", "manager", "trainee", "associate"]
+    role_keywords = ["intern", "developer", "engineer", "analyst", "manager", "trainee", "associate", "specialist"]
     for keyword in role_keywords:
         if keyword in lower_text:
             idx = lower_text.index(keyword)
@@ -71,7 +70,7 @@ async def extract_opportunity(request: ExtractRequest):
             end = min(len(text), idx + len(keyword) + 20)
             role = text[start:end].strip()
             break
-    
+            
     fees = {}
     fee_patterns = {
         "registration": ["registration fee", "registration amount", "register"],
@@ -99,7 +98,7 @@ async def extract_opportunity(request: ExtractRequest):
             "period": "month",
         }
     
-    return ExtractResponse(opportunity=ExtractedOpportunity(
+    return ExtractedOpportunity(
         type="OTHER",
         organization={"name": org_name, "email": emails[0] if emails else None, "website": urls[0] if urls else None},
         role=role,
@@ -114,7 +113,52 @@ async def extract_opportunity(request: ExtractRequest):
         deadlines=[],
         claims=[],
         rawText=text,
-    ))
+    )
+
+def extract_with_llm(text: str) -> ExtractedOpportunity:
+    system_prompt = """You are an expert data extractor. Extract structured opportunity information from the user's text.
+    Return JSON matching this schema exactly:
+    {
+      "type": "string (e.g., job, internship, course)",
+      "organization": {"name": "string", "email": "string", "website": "string"},
+      "role": "string",
+      "description": "string",
+      "fees": {"type_of_fee": number},
+      "stipend": {"amount": number, "currency": "string", "period": "string"},
+      "duration": "string",
+      "contacts": [{"email": "string", "phone": "string"}],
+      "urls": ["string"],
+      "eligibility": ["string"],
+      "skills": ["string (normalized, e.g. React, Node.js, ML)"],
+      "claimedBenefits": ["string"],
+      "deadlines": ["string"],
+      "claims": ["string"]
+    }
+    Missing fields should be omitted or null/empty. Do NOT invent data. Keep 'rawText' out of this.
+    """
+    try:
+        data = call_llm(system_prompt, text)
+        data['rawText'] = text
+        return ExtractedOpportunity(**data)
+    except Exception as e:
+        print(f"LLM extraction failed: {e}")
+        return extract_deterministic(text)
+
+@router.post("/opportunity", response_model=ExtractResponse)
+async def extract_opportunity(request: ExtractRequest):
+    text = request.text
+    
+    try:
+        from app.config import settings
+        if settings.LLM_API_KEY:
+            extracted = extract_with_llm(text)
+        else:
+            extracted = extract_deterministic(text)
+    except Exception as e:
+        print(f"Extraction error: {e}")
+        extracted = extract_deterministic(text)
+        
+    return ExtractResponse(opportunity=extracted)
 
 @router.post("/curriculum")
 async def extract_curriculum(request: ExtractRequest):

@@ -1,4 +1,5 @@
 export type EvidenceStatus = 
+  | 'OBSERVED'
   | 'VERIFIED' 
   | 'LIKELY' 
   | 'UNCERTAIN' 

@@ -38,7 +38,7 @@ export interface CredibilityAnalysis {
   evidence: Evidence[];
 }
 
-export type PaymentStatus = 'VERIFIED' | 'NOT_FOUND' | 'CONTRADICTED' | 'UNKNOWN' | 'NOT_IMPLEMENTED';
+export type PaymentStatus = 'VERIFIED' | 'NEEDS_VERIFICATION' | 'NEGATED' | 'NOT_FOUND' | 'CONTRADICTED' | 'UNKNOWN' | 'UNCERTAIN' | 'NOT_IMPLEMENTED';
 
 export interface PaymentVerification {
   required: boolean | null;

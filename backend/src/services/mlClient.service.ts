@@ -67,8 +67,8 @@ export class MLClient {
 
   async extractOpportunity(text: string): Promise<ExtractedOpportunity> {
     try {
-      const response = await this.client.post<ExtractedOpportunity>('/extract/opportunity', { text });
-      return response.data;
+      const response = await this.client.post<{ opportunity: ExtractedOpportunity }>('/extract/opportunity', { text });
+      return response.data.opportunity;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         throw new NotImplementedError('Opportunity extraction');
@@ -91,7 +91,7 @@ export class MLClient {
 
   async analyzeCredibility(opportunity: ExtractedOpportunity): Promise<MLCredibilityResponse> {
     try {
-      const response = await this.client.post<MLCredibilityResponse>('/credibility/analyze', { opportunity });
+      const response = await this.client.post<MLCredibilityResponse>('/credibility/website', { opportunity });
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {

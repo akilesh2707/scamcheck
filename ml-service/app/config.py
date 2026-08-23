@@ -9,7 +9,11 @@ class Settings(BaseSettings):
     
     REDIS_URL: str = "redis://localhost:6379"
     
+    LLM_PROVIDER: str = "openai"
     LLM_API_KEY: Optional[str] = None
+    LLM_MODEL: str = "gpt-3.5-turbo"
+    LLM_BASE_URL: str = "https://api.openai.com/v1"
+    
     EMBEDDING_API_KEY: Optional[str] = None
     
     class Config:
