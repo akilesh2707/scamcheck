@@ -1,10 +1,22 @@
 export type InputType = 'text' | 'screenshot' | 'pdf' | 'url';
 
+export interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+  destination?: string;
+  filename?: string;
+  path?: string;
+}
+
 export interface AnalyzeRequest {
   inputType: InputType;
   text?: string;
   url?: string;
-  file?: Express.Multer.File;
+  file?: MulterFile;
   userProfile?: UserProfile;
 }
 

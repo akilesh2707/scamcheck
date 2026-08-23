@@ -1,4 +1,4 @@
-import { AnalysisService } from './analysis.service';
+import { analysisService } from './analysis.service';
 
 export const reportService = {
   getById: (id: string) => analysisService.getReportById(id),

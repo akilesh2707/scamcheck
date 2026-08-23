@@ -3,8 +3,8 @@ import { config } from '../config/env';
 import { logger } from '../utils/logger';
 import { ExternalServiceError, NotImplementedError } from '../utils/errors';
 import { ExtractedOpportunity } from '../types/opportunity';
-import { RiskAnalysis, RiskIndicator, EvidenceStatus } from '../types/evidence';
-import { CredibilityAnalysis, PaymentVerification, SuitabilityAnalysis, Alternative } from '../types/report';
+import { RiskIndicator, EvidenceStatus } from '../types/evidence';
+import { RiskAnalysis, CredibilityAnalysis, PaymentVerification, SuitabilityAnalysis, Alternative } from '../types/report';
 
 interface MLRiskResponse {
   score: number;

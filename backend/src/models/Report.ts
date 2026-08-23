@@ -11,7 +11,7 @@ export interface IReport extends Document {
   credibilityAnalysis: Record<string, unknown>;
   paymentVerification: Record<string, unknown>;
   suitabilityAnalysis: Record<string, unknown>;
-  alternatives: Record<string, unknown>[];
+  alternatives: Array<Record<string, unknown>>;
   valueAnalysis: Record<string, unknown>;
   recommendation: Record<string, unknown>;
   evidenceLabels: Record<string, unknown>;
@@ -30,7 +30,7 @@ const reportSchema = new Schema<IReport>(
     credibilityAnalysis: { type: Schema.Types.Mixed, default: {} },
     paymentVerification: { type: Schema.Types.Mixed, default: {} },
     suitabilityAnalysis: { type: Schema.Types.Mixed, default: {} },
-    alternatives: { type: [Schema.Types.Mixed], default: [] },
+    alternatives: { type: Schema.Types.Mixed, default: [] },
     valueAnalysis: { type: Schema.Types.Mixed, default: {} },
     recommendation: { type: Schema.Types.Mixed, default: {} },
     evidenceLabels: { type: Schema.Types.Mixed, default: {} },

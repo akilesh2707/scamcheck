@@ -12,11 +12,9 @@ import {
   Alternative,
   ValueAnalysis,
   Recommendation,
-  EvidenceStatus,
   RiskLevel,
-  RiskIndicator,
-  Evidence,
 } from '../types/report';
+import { EvidenceStatus, RiskIndicator, Evidence } from '../types/evidence';
 import { logger } from '../utils/logger';
 
 const RISK_WEIGHTS = {
@@ -454,11 +452,12 @@ export class AnalysisService {
   }
 
   private localPaymentVerification(opportunity: ExtractedOpportunity): PaymentVerification {
-    const hasFees = opportunity.fees && Object.values(opportunity.fees).some(v => v > 0);
-    const totalFees = hasFees ? Object.values(opportunity.fees).reduce((a, b) => a + b, 0) : 0;
+    const fees = opportunity.fees as Record<string, number> | undefined;
+    const hasFees = fees && Object.values(fees).some(v => v > 0);
+    const totalFees = hasFees ? Object.values(fees).reduce((a: number, b: number) => a + b, 0) : 0;
 
     return {
-      required: hasFees,
+      required: hasFees ?? false,
       amount: hasFees ? totalFees : null,
       status: 'NOT_FOUND' as PaymentVerification['status'],
       confidence: 0.5,
@@ -466,7 +465,7 @@ export class AnalysisService {
         {
           claim: 'Payment requirement',
           status: hasFees ? 'VERIFIED' : 'NOT_FOUND',
-          details: hasFees ? `Fees detected: ${JSON.stringify(opportunity.fees)}` : 'No payment mentioned',
+          details: hasFees ? `Fees detected: ${JSON.stringify(fees)}` : 'No payment mentioned',
           checkedAt: new Date().toISOString(),
         },
       ],
@@ -478,15 +477,15 @@ export class AnalysisService {
     if (!report) return null;
 
     return {
-      opportunity: report.normalizedOpportunity as ExtractedOpportunity,
-      risk: report.riskAnalysis as RiskAnalysis,
-      credibility: report.credibilityAnalysis as CredibilityAnalysis,
-      payment: report.paymentVerification as PaymentVerification,
-      suitability: report.suitabilityAnalysis as SuitabilityAnalysis,
-      alternatives: report.alternatives as Alternative[],
-      value: report.valueAnalysis as ValueAnalysis,
-      recommendation: report.recommendation as Recommendation,
-      evidenceLabels: report.evidenceLabels as Record<string, Evidence>,
+      opportunity: report.normalizedOpportunity as unknown as ExtractedOpportunity,
+      risk: report.riskAnalysis as unknown as RiskAnalysis,
+      credibility: report.credibilityAnalysis as unknown as CredibilityAnalysis,
+      payment: report.paymentVerification as unknown as PaymentVerification,
+      suitability: report.suitabilityAnalysis as unknown as SuitabilityAnalysis,
+      alternatives: report.alternatives as unknown as Alternative[],
+      value: report.valueAnalysis as unknown as ValueAnalysis,
+      recommendation: report.recommendation as unknown as Recommendation,
+      evidenceLabels: report.evidenceLabels as unknown as Record<string, Evidence>,
       createdAt: report.createdAt.toISOString(),
       id: report._id.toString(),
     };
@@ -501,15 +500,15 @@ export class AnalysisService {
 
     return {
       reports: reports.map(r => ({
-        opportunity: r.normalizedOpportunity as ExtractedOpportunity,
-        risk: r.riskAnalysis as RiskAnalysis,
-        credibility: r.credibilityAnalysis as CredibilityAnalysis,
-        payment: r.paymentVerification as PaymentVerification,
-        suitability: r.suitabilityAnalysis as SuitabilityAnalysis,
-        alternatives: r.alternatives as Alternative[],
-        value: r.valueAnalysis as ValueAnalysis,
-        recommendation: r.recommendation as Recommendation,
-        evidenceLabels: r.evidenceLabels as Record<string, Evidence>,
+        opportunity: r.normalizedOpportunity as unknown as ExtractedOpportunity,
+        risk: r.riskAnalysis as unknown as RiskAnalysis,
+        credibility: r.credibilityAnalysis as unknown as CredibilityAnalysis,
+        payment: r.paymentVerification as unknown as PaymentVerification,
+        suitability: r.suitabilityAnalysis as unknown as SuitabilityAnalysis,
+        alternatives: r.alternatives as unknown as Alternative[],
+        value: r.valueAnalysis as unknown as ValueAnalysis,
+        recommendation: r.recommendation as unknown as Recommendation,
+        evidenceLabels: r.evidenceLabels as unknown as Record<string, Evidence>,
         createdAt: r.createdAt.toISOString(),
         id: r._id.toString(),
       })),

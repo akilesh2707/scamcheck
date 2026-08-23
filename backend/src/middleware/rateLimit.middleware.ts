@@ -39,8 +39,9 @@ export const rateLimit = async (
     const key = req.ip || 'unknown';
     await rateLimiter.consume(key);
     next();
-  } catch (rejRes: any) {
-    const secs = Math.round(rejRes.msBeforeNext / 1000) || 1;
+  } catch (rejRes: unknown) {
+    const error = rejRes as { msBeforeNext?: number };
+    const secs = Math.round((error.msBeforeNext ?? 1000) / 1000) || 1;
     res.set('Retry-After', String(secs));
     next(new AppError('RATE_LIMIT_EXCEEDED', 'Too many requests', 429, { retryAfter: secs }));
   }

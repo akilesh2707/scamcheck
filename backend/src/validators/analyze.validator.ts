@@ -25,7 +25,8 @@ export const analyzeSchema = z.object({
       message: 'Text is required for text input type, URL is required for url input type',
       path: ['text'],
     }
-  );
+  ),
+});
 
 export const suitabilitySchema = z.object({
   body: z.object({
@@ -70,7 +71,7 @@ export const suitabilitySchema = z.object({
   }).refine(
     (data) => data.opportunityId || data.opportunity,
     { message: 'Either opportunityId or opportunity must be provided', path: ['opportunity'] }
-  );
+  ),
 });
 
 export const skillGapSchema = z.object({
@@ -104,7 +105,7 @@ export const alternativesSchema = z.object({
   }).refine(
     (data) => data.opportunityId || data.opportunity,
     { message: 'Either opportunityId or opportunity must be provided', path: ['opportunity'] }
-  );
+  ),
 });
 
 export const paymentVerifySchema = z.object({
@@ -132,5 +133,5 @@ export const paymentVerifySchema = z.object({
   }).refine(
     (data) => data.opportunityId || data.opportunity,
     { message: 'Either opportunityId or opportunity must be provided', path: ['opportunity'] }
-  );
+  ),
 });
