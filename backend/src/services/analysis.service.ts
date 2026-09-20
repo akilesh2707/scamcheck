@@ -179,7 +179,7 @@ export class AnalysisService {
           evidence: mlCred.evidence || [],
         },
         company: { emailDomainMatch: false, applicationDomainMatch: false, contactConsistency: false, evidence: [] },
-        evidence: mlCred.evidence ? mlCred.evidence.map((e: any) => createDefaultEvidence('', e)) : [],
+        evidence: mlCred.evidence || [],
       };
     } catch (error) {
       logger.warn('ML credibility analysis failed', { error: (error as Error).message });
@@ -284,16 +284,17 @@ export class AnalysisService {
     const phones = text.match(phoneRegex) || [];
 
     const feeMatches = text.match(/[₹$]\s?[\d,]+/g) || [];
-    const stipendMatches = text.match(/(?:stipend|salary|pay|compensation)[:\s]*[₹$]\s?[\d,]+/gi) || [];
+    const stipendMatches = text.match(/(?:stipend|salary|compensation)[:\s]*[₹$]\s?[\d,]+/gi) || [];
+    const roleData = this.extractRole(text);
 
     return {
-      type: 'OTHER',
+      type: roleData.type as any,
       organization: {
         name: this.extractOrgName(text, emails),
         email: emails[0],
         website: urls[0],
       },
-      role: this.extractRole(text),
+      role: roleData.role,
       description: text.substring(0, 500),
       fees: this.extractFees(text),
       stipend: this.extractStipend(text),
@@ -323,29 +324,30 @@ export class AnalysisService {
     return 'Unknown Organization';
   }
 
-  private extractRole(text: string): string {
-    const roleKeywords = ['intern', 'developer', 'engineer', 'analyst', 'manager', 'trainee', 'associate'];
-    const lowerText = text.toLowerCase();
-    for (const keyword of roleKeywords) {
-      if (lowerText.includes(keyword)) {
-        const index = lowerText.indexOf(keyword);
-        const start = Math.max(0, index - 20);
-        const end = Math.min(text.length, index + keyword.length + 20);
-        return text.substring(start, end).trim();
+  private extractRole(text: string): { role: string; type: string } {
+    const roleKeywords = ['intern', 'developer', 'engineer', 'analyst', 'manager', 'trainee', 'associate', 'specialist'];
+    const sentences = text.split(/(?<=[.!?\n])/).map(s => s.trim()).filter(Boolean);
+    
+    for (const s of sentences) {
+      const sLower = s.toLowerCase();
+      if (roleKeywords.some(k => sLower.includes(k))) {
+        return {
+          role: s,
+          type: sLower.includes('intern') ? 'INTERNSHIP' : 'JOB'
+        };
       }
     }
-    return 'Not specified';
+    return { role: 'Not specified', type: 'OTHER' };
   }
-
   private extractFees(text: string): any {
     const fees: any = {};
     const feePatterns = [
-      { key: 'registration', patterns: ['registration fee', 'registration amount', 'register'] },
+      { key: 'registration', patterns: ['registration fee', 'registration amount', 'register', 'registration'] },
       { key: 'processing', patterns: ['processing fee', 'processing charge'] },
       { key: 'securityDeposit', patterns: ['security deposit', 'deposit'] },
       { key: 'placement', patterns: ['placement fee', 'placement charge'] },
       { key: 'certificate', patterns: ['certificate fee', 'certification fee'] },
-      { key: 'training', patterns: ['training fee', 'course fee', 'program fee'] },
+      { key: 'training', patterns: ['training fee', 'course fee', 'program fee', 'training'] },
     ];
 
     const lowerText = text.toLowerCase();
@@ -354,7 +356,7 @@ export class AnalysisService {
     for (const { key, patterns } of feePatterns) {
       for (const pattern of patterns) {
         if (lowerText.includes(pattern)) {
-          const match = text.match(new RegExp(`${pattern}[^₹$]*([₹$]\\s?[\\d,]+)`, 'i'));
+          const match = text.match(/([₹$]\s?[\d,]+)/);
           if (match) {
             fees[key] = parseInt(match[1].replace(/[₹$,]/g, ''), 10);
             break;
@@ -366,7 +368,7 @@ export class AnalysisService {
   }
 
   private extractStipend(text: string): any {
-    const stipendMatch = text.match(/(?:stipend|salary|pay|compensation)[:\s]*[₹$]\s?([\d,]+)/i);
+    const stipendMatch = text.match(/(?:stipend|salary|compensation)[:\s]*[₹$]\s?([\d,]+)/i);
     if (stipendMatch) {
       return {
         amount: parseInt(stipendMatch[1].replace(/,/g, ''), 10),

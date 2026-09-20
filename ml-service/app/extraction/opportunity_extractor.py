@@ -62,35 +62,37 @@ def extract_deterministic(text: str) -> ExtractedOpportunity:
         org_name = emails[0].split("@")[1].split(".")[0].title()
     
     role = "Not specified"
+    opp_type = "OTHER"
     role_keywords = ["intern", "developer", "engineer", "analyst", "manager", "trainee", "associate", "specialist"]
-    for keyword in role_keywords:
-        if keyword in lower_text:
-            idx = lower_text.index(keyword)
-            start = max(0, idx - 20)
-            end = min(len(text), idx + len(keyword) + 20)
-            role = text[start:end].strip()
+    
+    sentences = [s.strip() for s in re.split(r'[.!?\n]', text) if s.strip()]
+    for s in sentences:
+        s_lower = s.lower()
+        if any(keyword in s_lower for keyword in role_keywords):
+            role = s
+            opp_type = "INTERNSHIP" if "intern" in s_lower else "JOB"
             break
             
     fees = {}
     fee_patterns = {
-        "registration": ["registration fee", "registration amount", "register"],
+        "registration": ["registration fee", "registration amount", "register", "registration"],
         "processing": ["processing fee", "processing charge"],
         "securityDeposit": ["security deposit", "deposit"],
         "placement": ["placement fee", "placement charge"],
         "certificate": ["certificate fee", "certification fee"],
-        "training": ["training fee", "course fee", "program fee"],
+        "training": ["training fee", "course fee", "program fee", "training"],
     }
     
     for key, patterns in fee_patterns.items():
         for pattern in patterns:
             if pattern in lower_text:
-                match = re.search(rf"{pattern}[^₹$]*([₹$]\s?[\d,]+)", text, re.IGNORECASE)
+                match = re.search(r"([₹$]\s?[\d,]+)", text)
                 if match:
                     fees[key] = int(match.group(1).replace("₹", "").replace("$", "").replace(",", ""))
                     break
     
     stipend = None
-    stipend_match = re.search(r"(?:stipend|salary|pay|compensation)[:\s]*[₹$]\s?([\d,]+)", text, re.IGNORECASE)
+    stipend_match = re.search(r"(?:stipend|salary|compensation)[:\s]*[₹$]\s?([\d,]+)", text, re.IGNORECASE)
     if stipend_match:
         stipend = {
             "amount": int(stipend_match.group(1).replace(",", "")),
@@ -99,7 +101,7 @@ def extract_deterministic(text: str) -> ExtractedOpportunity:
         }
     
     return ExtractedOpportunity(
-        type="OTHER",
+        type=opp_type,
         organization={"name": org_name, "email": emails[0] if emails else None, "website": urls[0] if urls else None},
         role=role,
         description=text[:500],
