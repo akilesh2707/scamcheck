@@ -33,7 +33,7 @@ describe('Risk Engine', () => {
       const paymentIndicator = result.indicators.find((i: any) => i.code === 'PAYMENT_REQUEST');
       expect(paymentIndicator).toBeDefined();
       expect(paymentIndicator?.points).toBe(30);
-      expect(paymentIndicator?.evidence).toBe('VERIFIED');
+      expect(paymentIndicator?.evidence).toBe('SUPPORTED');
     });
 
     it('should detect processing fee', () => {
@@ -209,7 +209,7 @@ describe('Risk Engine', () => {
       const compIndicator = result.indicators.find((i: any) => i.code === 'UNREALISTIC_COMPENSATION');
       expect(compIndicator).toBeDefined();
       expect(compIndicator?.points).toBe(20);
-      expect(compIndicator?.evidence).toBe('LIKELY');
+      expect(compIndicator?.evidence).toBe('INFERRED');
     });
 
     it('should not flag reasonable stipend', () => {

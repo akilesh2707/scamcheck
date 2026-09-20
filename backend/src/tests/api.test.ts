@@ -68,14 +68,14 @@ describe('API Endpoints', () => {
     });
 
 
-    it('should return 501 for pdf input type', async () => {
+    it('should return 400 for pdf input type without file', async () => {
       const response = await request(app)
         .post('/api/analyze')
-        .send({ inputType: 'pdf', file: 'base64data' })
-        .expect(501);
+        .send({ inputType: 'pdf' })
+        .expect(400);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error.code).toBe('NOT_IMPLEMENTED');
+      expect(response.body.error.code).toBe('INVALID_INPUT');
     });
 
     it('should return 400 for invalid input type', async () => {

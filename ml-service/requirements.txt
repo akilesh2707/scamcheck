@@ -13,3 +13,6 @@ email-validator
 dnspython
 python-whois
 tldextract
+PyMuPDF
+pytesseract
+Pillow

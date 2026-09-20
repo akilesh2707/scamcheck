@@ -120,7 +120,7 @@ function createDefaultEvidence(claim: string, status: EvidenceStatus, details?: 
     claim,
     status,
     details,
-    checkedAt: new Date().toISOString(),
+    observedAt: new Date().toISOString(),
   };
 }
 
@@ -394,7 +394,7 @@ export class AnalysisService {
         title: 'Payment requested',
         explanation: 'The opportunity requests an upfront payment',
         points: RISK_WEIGHTS.PAYMENT_REQUEST,
-        evidence: 'VERIFIED' as EvidenceStatus,
+        evidence: 'SUPPORTED' as EvidenceStatus,
         details: `Fees found: ${JSON.stringify(opportunity.fees)}`,
       });
       totalScore += RISK_WEIGHTS.PAYMENT_REQUEST;
@@ -407,7 +407,7 @@ export class AnalysisService {
         title: 'Urgency pressure',
         explanation: 'The opportunity uses urgency language to pressure quick decisions',
         points: RISK_WEIGHTS.URGENCY_PRESSURE,
-        evidence: 'VERIFIED' as EvidenceStatus,
+        evidence: 'SUPPORTED' as EvidenceStatus,
       });
       totalScore += RISK_WEIGHTS.URGENCY_PRESSURE;
     }
@@ -419,7 +419,7 @@ export class AnalysisService {
         title: 'Sensitive information requested',
         explanation: 'The opportunity requests sensitive personal or financial information',
         points: RISK_WEIGHTS.SENSITIVE_INFO_REQUEST,
-        evidence: 'VERIFIED' as EvidenceStatus,
+        evidence: 'SUPPORTED' as EvidenceStatus,
       });
       totalScore += RISK_WEIGHTS.SENSITIVE_INFO_REQUEST;
     }
@@ -430,7 +430,7 @@ export class AnalysisService {
         title: 'Unrealistic compensation',
         explanation: 'The claimed compensation is unusually high for the role type',
         points: RISK_WEIGHTS.UNREALISTIC_COMPENSATION,
-        evidence: 'LIKELY' as EvidenceStatus,
+        evidence: 'INFERRED' as EvidenceStatus,
       });
       totalScore += RISK_WEIGHTS.UNREALISTIC_COMPENSATION;
     }
@@ -442,7 +442,7 @@ export class AnalysisService {
         title: 'Guaranteed placement claim',
         explanation: 'The opportunity makes unrealistic guarantees about job placement',
         points: RISK_WEIGHTS.GUARANTEED_PLACEMENT,
-        evidence: 'VERIFIED' as EvidenceStatus,
+        evidence: 'SUPPORTED' as EvidenceStatus,
       });
       totalScore += RISK_WEIGHTS.GUARANTEED_PLACEMENT;
     }
@@ -456,7 +456,7 @@ export class AnalysisService {
           title: 'Email/domain mismatch',
           explanation: 'Contact email domain does not match organization website domain',
           points: RISK_WEIGHTS.IDENTITY_MISMATCH,
-          evidence: 'LIKELY' as EvidenceStatus,
+          evidence: 'INFERRED' as EvidenceStatus,
         });
         totalScore += RISK_WEIGHTS.IDENTITY_MISMATCH;
       }
@@ -483,9 +483,9 @@ export class AnalysisService {
       evidence: [
         {
           claim: 'Payment requirement in text',
-          status: hasFees ? 'OBSERVED' : 'NOT_FOUND',
+          status: hasFees ? 'SUPPORTED' : 'UNAVAILABLE',
           details: hasFees ? `Fees detected: ${JSON.stringify(fees)}` : 'No payment mentioned',
-          checkedAt: new Date().toISOString(),
+          observedAt: new Date().toISOString(),
         },
       ],
     };

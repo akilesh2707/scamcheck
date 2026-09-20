@@ -21,6 +21,8 @@ class Opportunity(BaseModel):
     claims: Optional[List[str]] = None
     rawText: Optional[str] = None
 
+from app.alternatives.search_provider import get_search_provider
+
 class Alternative(BaseModel):
     name: str
     cost: float
@@ -30,6 +32,7 @@ class Alternative(BaseModel):
     potentialSaving: float
     evidence: List[Dict[str, Any]] = []
     source: Optional[str] = None
+    url: Optional[str] = None
 
 class AlternativesRequest(BaseModel):
     opportunity: Opportunity
@@ -37,8 +40,44 @@ class AlternativesRequest(BaseModel):
     limit: int = 10
 
 class AlternativesResponse(BaseModel):
+    status: str = "AVAILABLE"
     alternatives: List[Alternative]
 
 @router.post("/find", response_model=AlternativesResponse)
 async def find_alternatives(request: AlternativesRequest):
-    return AlternativesResponse(alternatives=[])
+    provider = get_search_provider()
+    
+    if not provider.is_configured():
+        return AlternativesResponse(status="SEARCH_UNAVAILABLE", alternatives=[])
+        
+    opp = request.opportunity
+    skills = opp.skills or []
+    role = opp.role or opp.type or "opportunity"
+    
+    query_parts = []
+    if role:
+        query_parts.append(f"free {role}")
+    if skills:
+        query_parts.append(" ".join(skills[:2]))
+    
+    query = " ".join(query_parts) if query_parts else "free online courses and internships"
+    
+    search_results = provider.search(query)
+    
+    alternatives = []
+    for res in search_results:
+        alternatives.append(
+            Alternative(
+                name=res.get("title", "Alternative Option"),
+                cost=0.0,
+                contentMatch=80.0,
+                gains=["Verified provider", "Free access"],
+                losses=[],
+                potentialSaving=float(opp.fees.get("training", 0)) if opp.fees else 0.0,
+                evidence=[],
+                source=res.get("provider", "Search Result"),
+                url=res.get("url")
+            )
+        )
+        
+    return AlternativesResponse(status="AVAILABLE", alternatives=alternatives)

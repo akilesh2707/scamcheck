@@ -8,6 +8,7 @@ from app.credibility.website_analyzer import router as website_router
 from app.credibility.company_verifier import router as company_router
 from app.payment.payment_verifier import router as payment_router
 from app.extraction.opportunity_extractor import router as extraction_router
+from app.extraction.pdf_service import router as pdf_router
 from app.suitability.suitability_analyzer import router as suitability_router
 from app.suitability.skill_gap_analyzer import router as skill_gap_router
 from app.alternatives.alternative_finder import router as alternatives_router
@@ -49,6 +50,7 @@ app.include_router(website_router, prefix="/credibility", tags=["credibility"])
 app.include_router(company_router, prefix="/credibility", tags=["credibility"])
 app.include_router(payment_router, prefix="/payment", tags=["payment"])
 app.include_router(extraction_router, prefix="/extract", tags=["extraction"])
+app.include_router(pdf_router, prefix="/extract/pdf", tags=["extraction"])
 app.include_router(suitability_router, prefix="/suitability", tags=["suitability"])
 app.include_router(skill_gap_router, prefix="/skill-gap", tags=["skill-gap"])
 app.include_router(alternatives_router, prefix="/alternatives", tags=["alternatives"])

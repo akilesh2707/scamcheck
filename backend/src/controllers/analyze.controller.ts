@@ -81,6 +81,38 @@ export class AnalyzeController {
           res.status(400).json(response);
           return;
         }
+      } else if (inputType === 'pdf') {
+        if (!req.file) {
+          const response: ApiResponse<null> = {
+            success: false,
+            error: { code: 'INVALID_INPUT', message: 'PDF file is required for pdf input type' },
+          };
+          res.status(400).json(response);
+          return;
+        }
+
+        try {
+          const fileBase64 = req.file.buffer.toString('base64');
+          const mimeType = req.file.mimetype;
+          const pdfResult = await mlClient.extractPdf(fileBase64, mimeType);
+          
+          if (!pdfResult.text || pdfResult.text.trim().length === 0) {
+            throw new Error('Failed to extract text from the PDF');
+          }
+          
+          const combinedText = `[Source: pdf_extraction (${pdfResult.method})]\n\n${pdfResult.text}`;
+          result = await analysisService.analyzeText(combinedText, userId, userProfile);
+        } catch (error: any) {
+          const response: ApiResponse<null> = {
+            success: false,
+            error: { 
+              code: error.code || 'PDF_EXTRACTION_FAILED', 
+              message: error.message || 'Failed to extract text from PDF'
+            },
+          };
+          res.status(400).json(response);
+          return;
+        }
       } else {
         const response: ApiResponse<null> = {
           success: false,

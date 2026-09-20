@@ -61,7 +61,7 @@ export function analyzeOpportunityRisk(opportunity: ExtractedOpportunity): RiskA
       title: 'Payment requested',
       explanation: 'The opportunity requests an upfront payment',
       points: RISK_WEIGHTS.PAYMENT_REQUEST,
-      evidence: 'VERIFIED' as EvidenceStatus,
+      evidence: 'SUPPORTED' as EvidenceStatus,
       details: `Fees found: ${JSON.stringify(fees)}`,
     });
     totalScore += RISK_WEIGHTS.PAYMENT_REQUEST;
@@ -73,7 +73,7 @@ export function analyzeOpportunityRisk(opportunity: ExtractedOpportunity): RiskA
       title: 'Urgency pressure',
       explanation: 'The opportunity uses urgency language to pressure quick decisions',
       points: RISK_WEIGHTS.URGENCY_PRESSURE,
-      evidence: 'VERIFIED' as EvidenceStatus,
+      evidence: 'SUPPORTED' as EvidenceStatus,
     });
     totalScore += RISK_WEIGHTS.URGENCY_PRESSURE;
   }
@@ -84,7 +84,7 @@ export function analyzeOpportunityRisk(opportunity: ExtractedOpportunity): RiskA
       title: 'Sensitive information requested',
       explanation: 'The opportunity requests sensitive personal or financial information',
       points: RISK_WEIGHTS.SENSITIVE_INFO_REQUEST,
-      evidence: 'VERIFIED' as EvidenceStatus,
+      evidence: 'SUPPORTED' as EvidenceStatus,
     });
     totalScore += RISK_WEIGHTS.SENSITIVE_INFO_REQUEST;
   }
@@ -96,7 +96,7 @@ export function analyzeOpportunityRisk(opportunity: ExtractedOpportunity): RiskA
       title: 'Unrealistic compensation',
       explanation: 'The claimed compensation is unusually high for the role type',
       points: RISK_WEIGHTS.UNREALISTIC_COMPENSATION,
-      evidence: 'LIKELY' as EvidenceStatus,
+      evidence: 'INFERRED' as EvidenceStatus,
     });
     totalScore += RISK_WEIGHTS.UNREALISTIC_COMPENSATION;
   }
@@ -107,7 +107,7 @@ export function analyzeOpportunityRisk(opportunity: ExtractedOpportunity): RiskA
       title: 'Guaranteed placement claim',
       explanation: 'The opportunity makes unrealistic guarantees about job placement',
       points: RISK_WEIGHTS.GUARANTEED_PLACEMENT,
-      evidence: 'VERIFIED' as EvidenceStatus,
+      evidence: 'SUPPORTED' as EvidenceStatus,
     });
     totalScore += RISK_WEIGHTS.GUARANTEED_PLACEMENT;
   }
@@ -122,7 +122,7 @@ export function analyzeOpportunityRisk(opportunity: ExtractedOpportunity): RiskA
         title: 'Email/domain mismatch',
         explanation: 'Contact email domain does not match organization website domain',
         points: RISK_WEIGHTS.IDENTITY_MISMATCH,
-        evidence: 'LIKELY' as EvidenceStatus,
+        evidence: 'INFERRED' as EvidenceStatus,
       });
       totalScore += RISK_WEIGHTS.IDENTITY_MISMATCH;
     }
@@ -134,7 +134,7 @@ export function analyzeOpportunityRisk(opportunity: ExtractedOpportunity): RiskA
       title: 'Suspicious claims',
       explanation: 'The opportunity makes claims commonly associated with scams',
       points: RISK_WEIGHTS.SUSPICIOUS_CLAIMS,
-      evidence: 'LIKELY' as EvidenceStatus,
+      evidence: 'INFERRED' as EvidenceStatus,
     });
     totalScore += RISK_WEIGHTS.SUSPICIOUS_CLAIMS;
   }

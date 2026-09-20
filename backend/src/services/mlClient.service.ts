@@ -172,6 +172,18 @@ export class MLClient {
       throw error;
     }
   }
+
+  async extractPdf(fileBase64: string, mimeType: string): Promise<{ text: string, confidence: number, method: string }> {
+    try {
+      const response = await this.client.post('/extract/pdf', { file: fileBase64, mimeType });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        throw new NotImplementedError('PDF extraction');
+      }
+      throw error;
+    }
+  }
 }
 
 export const mlClient = new MLClient();

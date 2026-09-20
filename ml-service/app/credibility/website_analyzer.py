@@ -82,8 +82,8 @@ async def analyze_website(request: WebsiteAnalysisRequest):
     domain = parsed.hostname or ""
     
     evidence = [
-        {"claim": "HTTPS Check", "status": "OBSERVED" if has_https else "CONTRADICTED", "details": f"URL uses {'HTTPS' if has_https else 'HTTP'}"},
-        {"claim": "Domain extracted", "status": "OBSERVED", "details": f"Domain: {domain}"},
+        {"claim": "HTTPS Check", "status": "SUPPORTED" if has_https else "CONTRADICTED", "details": f"URL uses {'HTTPS' if has_https else 'HTTP'}"},
+        {"claim": "Domain extracted", "status": "SUPPORTED", "details": f"Domain: {domain}"},
     ]
     
     has_privacy = False
@@ -93,14 +93,12 @@ async def analyze_website(request: WebsiteAnalysisRequest):
     
     if is_safe_url(target_url):
         try:
-            # We enforce a timeout and disallow too many redirects
             headers = {"User-Agent": "ScamCheck-Bot/1.0"}
             resp = requests.get(target_url, headers=headers, timeout=5.0, allow_redirects=True)
             if resp.status_code == 200:
                 page_accessible = True
-                evidence.append({"claim": "Page Accessibility", "status": "VERIFIED", "details": "Homepage returned HTTP 200"})
+                evidence.append({"claim": "Page Accessibility", "status": "SUPPORTED", "details": "Homepage returned HTTP 200"})
                 
-                # Parse to find basic links
                 soup = BeautifulSoup(resp.text, 'html.parser')
                 links = soup.find_all('a', href=True)
                 for a in links:
@@ -113,16 +111,65 @@ async def analyze_website(request: WebsiteAnalysisRequest):
                     if "contact" in text or "contact" in href:
                         has_contact = True
             else:
-                evidence.append({"claim": "Page Accessibility", "status": "UNCERTAIN", "details": f"Homepage returned HTTP {resp.status_code}"})
+                evidence.append({"claim": "Page Accessibility", "status": "CONTRADICTED", "details": f"Homepage returned HTTP {resp.status_code}"})
         except Exception as e:
             evidence.append({"claim": "Page Accessibility", "status": "CONTRADICTED", "details": f"Failed to fetch homepage: {str(e)}"})
     else:
         evidence.append({"claim": "Page Accessibility", "status": "CONTRADICTED", "details": "URL is unsafe or internal"})
 
     if has_privacy:
-        evidence.append({"claim": "Privacy Policy Link", "status": "OBSERVED", "details": "Found a link mentioning privacy on homepage."})
+        evidence.append({"claim": "Privacy Policy Link", "status": "SUPPORTED", "details": "Found a link mentioning privacy on homepage."})
     if has_terms:
-        evidence.append({"claim": "Terms Link", "status": "OBSERVED", "details": "Found a link mentioning terms on homepage."})
+        evidence.append({"claim": "Terms Link", "status": "SUPPORTED", "details": "Found a link mentioning terms on homepage."})
+
+    # Fetch RDAP info
+    domain_age_days = None
+    if domain:
+        try:
+            rdap_url = f"https://rdap.org/domain/{domain}"
+            rdap_resp = requests.get(rdap_url, timeout=5.0)
+            if rdap_resp.status_code == 200:
+                data = rdap_resp.json()
+                events = data.get("events", [])
+                reg_date = None
+                exp_date = None
+                for ev in events:
+                    if ev.get("eventAction") == "registration":
+                        reg_date = ev.get("eventDate")
+                    elif ev.get("eventAction") == "expiration":
+                        exp_date = ev.get("eventDate")
+                
+                entities = data.get("entities", [])
+                registrar = None
+                for ent in entities:
+                    if "registrar" in ent.get("roles", []):
+                        vcard_array = ent.get("vcardArray", [])
+                        if len(vcard_array) > 1:
+                            for item in vcard_array[1]:
+                                if item[0] == "fn":
+                                    registrar = item[3]
+                                    break
+                
+                details = []
+                if registrar:
+                    details.append(f"Registrar: {registrar}")
+                else:
+                    details.append("Registrar: Redacted/Unknown")
+                    
+                if reg_date:
+                    details.append(f"Registered: {reg_date}")
+                    # Basic age calculation for display could go here, but for now just show date
+                
+                if exp_date:
+                    details.append(f"Expires: {exp_date}")
+                
+                evidence.append({"claim": "RDAP Domain Registration", "status": "SUPPORTED", "details": " | ".join(details)})
+            elif rdap_resp.status_code == 404:
+                evidence.append({"claim": "RDAP Domain Registration", "status": "CONTRADICTED", "details": "Domain not found in RDAP registry."})
+            else:
+                evidence.append({"claim": "RDAP Domain Registration", "status": "UNAVAILABLE", "details": f"RDAP service returned {rdap_resp.status_code}"})
+        except requests.RequestException as e:
+            evidence.append({"claim": "RDAP Domain Registration", "status": "UNAVAILABLE", "details": f"RDAP lookup failed or timed out: {str(e)}"})
 
     score = 50
     if has_https:

@@ -1,18 +1,18 @@
 export type EvidenceStatus = 
-  | 'OBSERVED'
-  | 'VERIFIED' 
-  | 'LIKELY' 
-  | 'UNCERTAIN' 
+  | 'SUPPORTED'
   | 'CONTRADICTED' 
-  | 'NOT_FOUND' 
-  | 'NOT_IMPLEMENTED';
+  | 'NOT_VERIFIED' 
+  | 'UNAVAILABLE' 
+  | 'INFERRED';
 
 export interface Evidence {
   claim: string;
   status: EvidenceStatus;
-  source?: string;
+  sourceType?: string;
+  sourceUrl?: string;
+  sourceTitle?: string;
   details?: string;
-  checkedAt?: string;
+  observedAt?: string;
   confidence?: number;
 }
 
