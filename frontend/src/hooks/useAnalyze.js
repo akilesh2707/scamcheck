@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -10,20 +10,19 @@ export const ANALYSIS_STEPS = [
   { key: 'evidence', label: 'Building your evidence report' },
 ];
 
-/**
- * Drives the analyze flow: submits to the real API, and — while the single
- * request is in flight — advances a presentational step indicator on a
- * timer. The steps are cosmetic pacing, never a fake percentage tied to
- * actual progress the backend doesn't report.
- */
 export function useAnalyze() {
   const [status, setStatus] = useState('idle'); // idle | loading | error
   const [stepIndex, setStepIndex] = useState(0);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const isRequesting = useRef(false);
 
   const run = useCallback(
     async (input) => {
+      if (isRequesting.current) {
+        return; // Prevent duplicate concurrent requests
+      }
+      isRequesting.current = true;
       setStatus('loading');
       setError(null);
       setStepIndex(0);
@@ -34,7 +33,9 @@ export function useAnalyze() {
 
       try {
         let report;
-        if (input.type === 'screenshot') {
+        if (input.type === 'pdf') {
+          report = await api.analyzePdf(input.value, input.userProfile);
+        } else if (input.type === 'screenshot') {
           report = await api.analyzeScreenshot(input.value, input.userProfile);
         } else if (input.type === 'url') {
           report = await api.analyzeUrl(input.value, input.userProfile);
@@ -43,12 +44,14 @@ export function useAnalyze() {
         }
         clearInterval(stepTimer);
         setStatus('idle');
+        isRequesting.current = false;
         navigate(`/report/${report.id}`, { state: { report } });
         return report;
       } catch (err) {
         clearInterval(stepTimer);
         setStatus('error');
         setError(err);
+        isRequesting.current = false;
         throw err;
       }
     },

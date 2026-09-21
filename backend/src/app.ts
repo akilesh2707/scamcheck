@@ -16,20 +16,48 @@ import websiteRoutes from './routes/website.routes';
 import companyRoutes from './routes/company.routes';
 import reportRoutes from './routes/report.routes';
 
+import { requestContextMiddleware } from './middleware/requestContext.middleware';
+
 export const createApp = (): express.Application => {
   const app = express();
 
+  app.use(requestContextMiddleware);
   app.use(helmet());
   app.use(cors({
-    origin: config.nodeEnv === 'production' ? false : true,
+    origin: (origin, callback) => {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const allowedOrigins = config.cors.allowedOrigins;
+
+      if (allowedOrigins.includes(origin) || origin.startsWith('chrome-extension://')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   }));
   app.use(morgan(config.nodeEnv === 'production' ? 'combined' : 'dev'));
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
   app.get('/api/health', (req, res) => {
     res.json({ success: true, service: 'scamcheck-backend', status: 'healthy' });
+  });
+
+  app.get('/api/ready', async (req, res) => {
+    try {
+      const mongoose = (await import('mongoose')).default;
+      if (mongoose.connection.readyState !== 1) {
+        res.status(503).json({ success: false, status: 'unavailable', reason: 'db' });
+        return;
+      }
+      res.json({ success: true, status: 'ready' });
+    } catch {
+      res.status(503).json({ success: false, status: 'unavailable' });
+    }
   });
 
   app.get('/api', (req, res) => {
@@ -56,17 +84,37 @@ export const createApp = (): express.Application => {
   return app;
 };
 
-export const startServer = async (): Promise<void> => {
-  const { connectDatabase } = await import('./config/database');
+export const startServer = async () => {
+  const { connectDatabase, disconnectDatabase } = await import('./config/database');
   await connectDatabase();
-  
+
   await initRateLimiter();
 
   const app = createApp();
-  
-  app.listen(config.port, () => {
+
+  const server = app.listen(config.port, () => {
     console.log(`Server running on port ${config.port} in ${config.nodeEnv} mode`);
   });
+
+  const shutdown = async (signal: string) => {
+    console.log(`\n${signal} received. Starting graceful shutdown...`);
+    server.close(async () => {
+      console.log('HTTP server closed.');
+      await disconnectDatabase();
+      process.exit(0);
+    });
+
+    // Force close if it takes too long
+    setTimeout(() => {
+      console.error('Could not close connections in time, forcefully shutting down');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+
+  return server;
 };
 
 if (require.main === module) {

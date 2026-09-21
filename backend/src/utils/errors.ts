@@ -13,42 +13,46 @@ export class AppError extends Error {
 
 export class ValidationError extends AppError {
   constructor(message: string, details?: unknown) {
-    super('VALIDATION_ERROR', message, 400, details);
+    super('SCAMCHECK_INVALID_INPUT', message, 400, details);
     this.name = 'ValidationError';
   }
 }
 
 export class AuthenticationError extends AppError {
   constructor(message: string = 'Authentication required') {
-    super('UNAUTHORIZED', message, 401);
+    super('SCAMCHECK_UNAUTHORIZED', message, 401);
     this.name = 'AuthenticationError';
   }
 }
 
 export class AuthorizationError extends AppError {
   constructor(message: string = 'Insufficient permissions') {
-    super('FORBIDDEN', message, 403);
+    super('SCAMCHECK_FORBIDDEN', message, 403);
     this.name = 'AuthorizationError';
   }
 }
 
 export class NotFoundError extends AppError {
   constructor(message: string = 'Resource not found') {
-    super('NOT_FOUND', message, 404);
+    super('SCAMCHECK_NOT_FOUND', message, 404);
     this.name = 'NotFoundError';
   }
 }
 
 export class RateLimitError extends AppError {
   constructor(message: string = 'Too many requests', retryAfter?: number) {
-    super('RATE_LIMIT_EXCEEDED', message, 429, { retryAfter });
+    super('SCAMCHECK_RATE_LIMIT', message, 429, { retryAfter });
     this.name = 'RateLimitError';
   }
 }
 
 export class ExternalServiceError extends AppError {
   constructor(service: string, message: string, details?: unknown) {
-    super('EXTERNAL_SERVICE_ERROR', `${service}: ${message}`, 502, details);
+    // Determine if it's a timeout
+    const code = (message.toLowerCase().includes('timeout') || message.toLowerCase().includes('econnrefused'))
+      ? 'SCAMCHECK_SERVICE_TIMEOUT'
+      : 'SCAMCHECK_SERVICE_ERROR';
+    super(code, `${service}: ${message}`, 502, details);
     this.name = 'ExternalServiceError';
   }
 }

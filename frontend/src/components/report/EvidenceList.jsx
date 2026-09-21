@@ -42,7 +42,17 @@ export default function EvidenceList({ items, emptyLabel = 'No evidence recorded
               {item.details && (
                 <div style={{ fontSize: 12.5, color: 'var(--sc-text-secondary)', lineHeight: 1.5 }}>{item.details}</div>
               )}
-              {item.source && (
+              {item.sourceTitle && item.sourceUrl && (
+                <div style={{ fontSize: 12, marginTop: 4 }}>
+                  <a href={item.sourceUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--sc-primary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Icon name="external-link" size={11} /> {item.sourceTitle}
+                  </a>
+                </div>
+              )}
+              {item.sourceType && !item.sourceUrl && (
+                <div style={{ fontSize: 12, color: 'var(--sc-text-muted)', marginTop: 2 }}>Source: {item.sourceType}</div>
+              )}
+              {item.source && !item.sourceType && !item.sourceUrl && (
                 <div style={{ fontSize: 12, color: 'var(--sc-text-muted)', marginTop: 2 }}>Source: {item.source}</div>
               )}
             </div>

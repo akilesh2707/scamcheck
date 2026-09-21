@@ -22,10 +22,20 @@ export interface AnalyzeRequest {
 
 export interface UserProfile {
   education?: string[];
-  skills?: string[];
-  interests?: string[];
+  degree?: string;
+  graduationYear?: number;
+  experienceLevel?: string;
+  skills?: string[]; // technical skills
+  softSkills?: string[];
+  preferredRoles?: string[];
+  preferredIndustries?: string[];
   careerGoals?: string[];
   experience?: string[];
+  location?: string;
+  remotePreference?: string;
+  expectedSalary?: number;
+  maxPaymentWillingness?: number;
+  learningGoals?: string[];
   budget?: number;
   availableTime?: string;
   preferredLearningMode?: 'ONLINE' | 'OFFLINE' | 'HYBRID';

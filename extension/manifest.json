@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "ScamCheck Extension",
+  "version": "1.0.0",
+  "description": "ScamCheck browser extension to analyze the current page for opportunities and risks.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "contextMenus",
+    "storage"
+  ],
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "Analyze Current Page"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

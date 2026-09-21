@@ -11,7 +11,7 @@ export default function RiskRing({ score = 0, tone = 'neutral', size = 132, labe
   const colors = toneColors(tone);
 
   useEffect(() => {
-    const target = Math.max(0, Math.min(100, Math.round(score)));
+    const target = score == null ? 0 : Math.max(0, Math.min(100, Math.round(score)));
     const start = performance.now();
     const duration = 1100;
 
@@ -21,19 +21,21 @@ export default function RiskRing({ score = 0, tone = 'neutral', size = 132, labe
       setDisplay(Math.round(eased * target));
       if (t < 1) frame.current = requestAnimationFrame(tick);
     }
-    frame.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame.current);
+    if (score != null) {
+      frame.current = requestAnimationFrame(tick);
+    }
+    return () => frame.current && cancelAnimationFrame(frame.current);
   }, [score]);
 
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
-  const progress = (Math.max(0, Math.min(100, score)) / 100) * circumference;
+  const progress = score == null ? 0 : (Math.max(0, Math.min(100, score)) / 100) * circumference;
 
   return (
     <div
       style={{ width: size, height: size, position: 'relative', flexShrink: 0 }}
       role="img"
-      aria-label={`${label || 'Risk score'}: ${Math.round(score)} out of 100`}
+      aria-label={`${label || 'Risk score'}: ${score == null ? 'Unavailable' : Math.round(score) + ' out of 100'}`}
     >
       <svg width={size} height={size} viewBox="0 0 120 120" style={{ transform: 'rotate(-90deg)' }}>
         <circle cx="60" cy="60" r={radius} fill="none" stroke="var(--sc-surface-sunken)" strokeWidth="10" />
@@ -60,7 +62,7 @@ export default function RiskRing({ score = 0, tone = 'neutral', size = 132, labe
           justifyContent: 'center',
         }}
       >
-        <span style={{ fontSize: size > 110 ? 32 : 24, fontWeight: 800, color: colors.fg, lineHeight: 1 }}>{display}</span>
+        <span style={{ fontSize: size > 110 ? 32 : 24, fontWeight: 800, color: colors.fg, lineHeight: 1 }}>{score == null ? '—' : display}</span>
         {sublabel && (
           <span style={{ fontSize: 11, color: 'var(--sc-text-muted)', marginTop: 4, fontWeight: 600 }}>{sublabel}</span>
         )}

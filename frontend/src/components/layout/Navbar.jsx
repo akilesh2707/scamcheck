@@ -74,6 +74,23 @@ export default function Navbar() {
               )}
             </NavLink>
           ))}
+          {user && (
+            <NavLink
+              to="/profile"
+              className="sc-nav-link"
+              style={({ isActive }) => ({
+                fontSize: 14.5,
+                fontWeight: 600,
+                color: isActive ? 'var(--sc-text)' : 'var(--sc-text-secondary)',
+              })}
+            >
+              {({ isActive }) => (
+                <span data-active={isActive} className="sc-nav-link">
+                  Profile
+                </span>
+              )}
+            </NavLink>
+          )}
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} className="sc-nav-actions">
@@ -137,6 +154,15 @@ export default function Navbar() {
                 {link.label}
               </NavLink>
             ))}
+            {user && (
+              <NavLink
+                to="/profile"
+                onClick={() => setOpen(false)}
+                style={{ padding: '12px 4px', fontSize: 15, fontWeight: 600, color: 'var(--sc-text)', borderBottom: '1px solid var(--sc-border)' }}
+              >
+                Profile
+              </NavLink>
+            )}
             {!user && (
               <NavLink to="/login" onClick={() => setOpen(false)} style={{ padding: '12px 4px', fontSize: 15, fontWeight: 600, color: 'var(--sc-text)' }}>
                 Sign in

@@ -27,7 +27,7 @@ class GoogleCustomSearchProvider(SearchProvider):
     def search(self, query: str) -> List[Dict[str, Any]]:
         if not self.is_configured():
             return []
-            
+
         try:
             params = {
                 "key": self.api_key,
@@ -38,7 +38,7 @@ class GoogleCustomSearchProvider(SearchProvider):
             response = requests.get(self.base_url, params=params, timeout=5.0)
             response.raise_for_status()
             data = response.json()
-            
+
             results = []
             for item in data.get("items", []):
                 results.append({
@@ -48,8 +48,15 @@ class GoogleCustomSearchProvider(SearchProvider):
                     "provider": item.get("displayLink", "")
                 })
             return results
-        except Exception as e:
-            logger.error(f"Search provider failed: {str(e)}")
+        except requests.Timeout:
+            logger.error("Search provider failed: Connection timed out")
+            return []
+        except requests.RequestException as e:
+            status = e.response.status_code if e.response else "Unknown"
+            logger.error(f"Search provider failed: HTTP {status}")
+            return []
+        except Exception:
+            logger.error("Search provider failed: Internal error")
             return []
 
 def get_search_provider() -> SearchProvider:

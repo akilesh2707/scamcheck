@@ -17,7 +17,7 @@ export const errorHandler = (
     const response: ApiResponse<null> = {
       success: false,
       error: {
-        code: 'VALIDATION_ERROR',
+        code: 'SCAMCHECK_INVALID_INPUT',
         message: 'Invalid request data',
         details: err.errors,
       },
@@ -55,8 +55,8 @@ export const errorHandler = (
     success: false,
     error: {
       code: 'INTERNAL_SERVER_ERROR',
-      message: config.nodeEnv === 'production' 
-        ? 'An unexpected error occurred' 
+      message: config.nodeEnv === 'production'
+        ? 'An unexpected error occurred'
         : err.message,
     },
   };

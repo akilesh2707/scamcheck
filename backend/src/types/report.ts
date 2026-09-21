@@ -1,7 +1,7 @@
 import { ExtractedOpportunity } from './opportunity';
 import { RiskIndicator, Evidence, CrossSourceCheck } from './evidence';
 
-export type RiskLevel = 'LOW' | 'MODERATE' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
+export type RiskLevel = 'LOW' | 'MODERATE' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH' | 'UNKNOWN';
 
 export interface RiskAnalysis {
   score: number;
@@ -43,18 +43,29 @@ export type PaymentStatus = 'VERIFIED' | 'NEEDS_VERIFICATION' | 'NEGATED' | 'NOT
 export interface PaymentVerification {
   required: boolean | null;
   amount: number | null;
+  currency?: string | null;
+  purpose?: string | null;
+  paymentType?: string | null;
+  refundable?: boolean | null;
   status: PaymentStatus;
   confidence: number;
   evidence: Evidence[];
 }
 
+export interface SuitabilityComponent {
+  score: number | null;
+  status: 'SUPPORTED' | 'INFERRED' | 'NOT_VERIFIED' | 'UNAVAILABLE';
+  reason?: string;
+}
+
 export interface SuitabilityBreakdown {
-  skillMatch?: number;
-  careerMatch?: number;
-  experienceMatch?: number;
-  eligibilityMatch?: number;
-  timeFit?: number;
-  costFit?: number;
+  skills: SuitabilityComponent;
+  education: SuitabilityComponent;
+  experience: SuitabilityComponent;
+  careerGoals: SuitabilityComponent;
+  compensation: SuitabilityComponent;
+  location: SuitabilityComponent;
+  budget: SuitabilityComponent;
 }
 
 export interface SkillGapItem {
@@ -64,13 +75,15 @@ export interface SkillGapItem {
   requiredLevel?: string;
   priority?: 'HIGH' | 'MEDIUM' | 'LOW';
   resources?: string[];
+  status?: 'SUPPORTED' | 'INFERRED';
+  reason?: string;
 }
 
 export interface SuitabilityAnalysis {
-  score: number | null;
+  overallScore: number | null;
   breakdown: SuitabilityBreakdown;
   skillGap: SkillGapItem[];
-  status: 'COMPLETE' | 'INSUFFICIENT_PROFILE_DATA' | 'NOT_IMPLEMENTED';
+  status: 'SUPPORTED' | 'INFERRED' | 'NOT_VERIFIED' | 'UNAVAILABLE';
 }
 
 export interface Alternative {
@@ -88,18 +101,25 @@ export interface ValueAnalysis {
   score: number | null;
   potentialSaving: number;
   alternatives: Alternative[];
+  status?: 'COMPLETED' | 'UNAVAILABLE';
 }
 
-export type RecommendationDecision = 
-  | 'SAFE_TO_EXPLORE' 
-  | 'CAUTION' 
-  | 'VERIFY_FIRST' 
-  | 'AVOID_PAYMENT' 
+export type RecommendationDecision =
+  | 'SAFE_TO_EXPLORE'
+  | 'CAUTION'
+  | 'VERIFY_FIRST'
+  | 'AVOID_PAYMENT'
   | 'INSUFFICIENT_EVIDENCE';
 
 export interface Recommendation {
   decision: RecommendationDecision;
-  reasons: string[];
+  summary: string;
+  verifiedFacts: string[];
+  unverifiedClaims: string[];
+  cautionarySignals: string[];
+  profileMatches: string[];
+  paymentAdvisory: string | null;
+  questionsToAsk: string[];
   nextSteps: string[];
 }
 

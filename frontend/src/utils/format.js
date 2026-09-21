@@ -25,29 +25,23 @@ export function riskScoreTone(score) {
 // the whole point of the product: "observed in the text" is not the same
 // claim as "verified against an outside source."
 export const EVIDENCE_STATUS = {
-  VERIFIED: {
-    label: 'Verified',
+  SUPPORTED: {
+    label: 'Supported',
     tone: 'success',
     icon: 'check-circle',
-    hint: 'Confirmed against an independent source',
+    hint: 'Confirmed by technical or external evidence',
   },
-  OBSERVED: {
-    label: 'Observed in message',
-    tone: 'neutral',
-    icon: 'eye',
-    hint: 'Seen in the submitted text — not yet independently confirmed',
-  },
-  LIKELY: {
-    label: 'Likely',
+  INFERRED: {
+    label: 'Inferred',
     tone: 'warning',
     icon: 'sparkles',
-    hint: 'Inferred with reasonable confidence, not directly confirmed',
+    hint: 'Inferred by AI, not directly confirmed',
   },
-  UNCERTAIN: {
-    label: 'Needs verification',
+  NOT_VERIFIED: {
+    label: 'Could not verify',
     tone: 'warning',
     icon: 'help-circle',
-    hint: 'Could not be confirmed one way or the other',
+    hint: 'Needs independent verification',
   },
   CONTRADICTED: {
     label: 'Contradicted',
@@ -55,17 +49,11 @@ export const EVIDENCE_STATUS = {
     icon: 'x-circle',
     hint: 'Conflicts with an independent source',
   },
-  NOT_FOUND: {
-    label: 'Not found',
-    tone: 'neutral',
-    icon: 'minus-circle',
-    hint: 'No evidence of this was found',
-  },
-  NOT_IMPLEMENTED: {
+  UNAVAILABLE: {
     label: 'Unavailable',
     tone: 'neutral',
     icon: 'minus-circle',
-    hint: 'This check is not available yet',
+    hint: 'This check could not be completed',
   },
 };
 

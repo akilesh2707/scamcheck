@@ -38,3 +38,26 @@ export const updateProfileSchema = z.object({
     { message: 'New password is required when current password is provided', path: ['newPassword'] }
   ),
 });
+
+export const updateUserProfileSchema = z.object({
+  body: z.object({
+    education: z.array(z.string()).optional(),
+    degree: z.string().optional(),
+    graduationYear: z.number().optional(),
+    experienceLevel: z.string().optional(),
+    skills: z.array(z.string()).optional(),
+    softSkills: z.array(z.string()).optional(),
+    preferredRoles: z.array(z.string()).optional(),
+    preferredIndustries: z.array(z.string()).optional(),
+    careerGoals: z.array(z.string()).optional(),
+    experience: z.array(z.string()).optional(),
+    location: z.string().optional(),
+    remotePreference: z.string().optional(),
+    expectedSalary: z.number().optional(),
+    maxPaymentWillingness: z.number().optional(),
+    learningGoals: z.array(z.string()).optional(),
+    budget: z.number().optional(),
+    availableTime: z.string().optional(),
+    preferredLearningMode: z.enum(['ONLINE', 'OFFLINE', 'HYBRID']).optional(),
+  }),
+});

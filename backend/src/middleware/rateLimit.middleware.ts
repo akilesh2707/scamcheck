@@ -9,7 +9,7 @@ let rateLimiter: RateLimiterRedis | null = null;
 
 export const initRateLimiter = async (): Promise<void> => {
   try {
-    const redisClient = createClient({ 
+    const redisClient = createClient({
       url: config.redis.url,
       socket: {
         reconnectStrategy: (retries) => {
@@ -59,7 +59,7 @@ export const rateLimit = async (
       const error = rejRes as { msBeforeNext?: number };
       const secs = Math.round((error.msBeforeNext ?? 1000) / 1000) || 1;
       res.set('Retry-After', String(secs));
-      next(new AppError('RATE_LIMIT_EXCEEDED', 'Too many requests', 429, { retryAfter: secs }));
+      next(new AppError('SCAMCHECK_RATE_LIMIT', 'Too many requests', 429, { retryAfter: secs }));
     }
   }
 };

@@ -13,7 +13,7 @@ import { EXAMPLES } from '../utils/examples';
 const TABS = [
   { key: 'text', label: 'Paste Text', icon: 'file-text' },
   { key: 'url', label: 'Website URL', icon: 'link' },
-  { key: 'screenshot', label: 'Upload Screenshot', icon: 'image' },
+  { key: 'document', label: 'Upload Document', icon: 'file' },
 ];
 
 const REPORT_INCLUDES = [
@@ -54,6 +54,7 @@ export default function AnalyzePage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (isLoading) return;
     setValidationError(null);
 
     if (tab === 'text') {
@@ -86,9 +87,9 @@ export default function AnalyzePage() {
       return;
     }
 
-    if (tab === 'screenshot') {
+    if (tab === 'document') {
       if (!file) {
-        setValidationError('Please select or drag an image to upload.');
+        setValidationError('Please select or drag a file to upload.');
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
@@ -96,7 +97,8 @@ export default function AnalyzePage() {
         return;
       }
       try {
-        await run({ type: 'screenshot', value: file });
+        const type = file.type === 'application/pdf' ? 'pdf' : 'screenshot';
+        await run({ type, value: file });
       } catch {
         /* surfaced via error state */
       }
@@ -158,7 +160,7 @@ export default function AnalyzePage() {
 
           <form onSubmit={handleSubmit} style={{ padding: 24 }}>
             <label htmlFor="opportunity-input" style={{ fontSize: 13, fontWeight: 700, color: 'var(--sc-text)', display: 'block', marginBottom: 10 }}>
-              {tab === 'text' ? 'Opportunity details' : tab === 'url' ? 'Website URL' : 'Upload an image'}
+              {tab === 'text' ? 'Opportunity details' : tab === 'url' ? 'Website URL' : 'Upload document'}
             </label>
 
             {tab === 'text' ? (
@@ -231,26 +233,33 @@ export default function AnalyzePage() {
               >
                 {filePreview ? (
                   <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <img src={filePreview} alt="Upload preview" style={{ maxHeight: 160, objectFit: 'contain', borderRadius: 'var(--sc-radius-sm)', border: '1px solid var(--sc-border)' }} />
+                    {file.type === 'application/pdf' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                        <Icon name="file-text" size={48} style={{ color: 'var(--sc-text-muted)' }} />
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>{file.name}</span>
+                      </div>
+                    ) : (
+                      <img src={filePreview} alt="Upload preview" style={{ maxHeight: 160, objectFit: 'contain', borderRadius: 'var(--sc-radius-sm)', border: '1px solid var(--sc-border)' }} />
+                    )}
                     <button
                       type="button"
                       onClick={() => { setFile(null); setFilePreview(null); }}
                       style={{ marginTop: 12, background: 'transparent', color: 'var(--sc-danger)', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
-                      Remove Image
+                      Remove File
                     </button>
                   </div>
                 ) : (
                   <>
-                    <Icon name="image" size={32} style={{ color: 'var(--sc-text-muted)', marginBottom: 12 }} />
+                    <Icon name="upload-cloud" size={32} style={{ color: 'var(--sc-text-muted)', marginBottom: 12 }} />
                     <p style={{ fontSize: 14.5, color: 'var(--sc-text)', fontWeight: 600, marginBottom: 4 }}>
-                      Drag and drop a screenshot here
+                      Drag and drop a file here
                     </p>
                     <p style={{ fontSize: 13, color: 'var(--sc-text-muted)', marginBottom: 16 }}>
-                      or click to browse your files (PNG, JPG up to 5MB)
+                      or click to browse your files (PDF, PNG, JPG up to 5MB)
                     </p>
                     <label
-                      htmlFor="screenshot-upload"
+                      htmlFor="document-upload"
                       style={{
                         padding: '8px 16px',
                         background: 'var(--sc-surface)',
@@ -265,15 +274,19 @@ export default function AnalyzePage() {
                       Browse Files
                     </label>
                     <input
-                      id="screenshot-upload"
+                      id="document-upload"
                       type="file"
-                      accept="image/png, image/jpeg, image/jpg"
+                      accept="image/png, image/jpeg, image/jpg, application/pdf"
                       style={{ display: 'none' }}
                       onChange={(e) => {
                         const f = e.target.files[0];
                         if (f) {
                           setFile(f);
-                          setFilePreview(URL.createObjectURL(f));
+                          if (f.type !== 'application/pdf') {
+                            setFilePreview(URL.createObjectURL(f));
+                          } else {
+                            setFilePreview(true); // Just to indicate a file is selected for PDF
+                          }
                           setValidationError(null);
                         }
                       }}
@@ -306,7 +319,7 @@ export default function AnalyzePage() {
               </div>
             )}
 
-            <Button type="submit" size="lg" icon="arrow-right" style={{ marginTop: 20, width: '100%' }}>
+            <Button type="submit" size="lg" icon="arrow-right" style={{ marginTop: 20, width: '100%' }} disabled={isLoading}>
               Analyze Opportunity
             </Button>
           </form>

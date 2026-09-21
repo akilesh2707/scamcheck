@@ -39,6 +39,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import time
+import logging
+import uuid
+from starlette.requests import Request
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s")
+logger = logging.getLogger("ml-service")
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    request_id = request.headers.get("x-request-id", str(uuid.uuid4()))
+    start_time = time.time()
+
+    # Log start without sensitive data
+    logger.info(f"ReqID:{request_id} Started {request.method} {request.url.path}")
+
+    response = await call_next(request)
+
+    process_time = time.time() - start_time
+    logger.info(f"ReqID:{request_id} Completed {response.status_code} in {process_time:.3f}s")
+
+    response.headers["X-Request-ID"] = request_id
+    return response
+
 # Health check
 @app.get("/health")
 async def health_check():

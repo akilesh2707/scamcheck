@@ -3,7 +3,7 @@ import multer from 'multer';
 import { analyzeController } from '../controllers/analyze.controller';
 import { validate } from '../middleware/validation.middleware';
 import { analyzeSchema } from '../validators/analyze.validator';
-import { optionalAuth } from '../middleware/auth.middleware';
+import { optionalAuth, optionalAuthAllowExtension } from '../middleware/auth.middleware';
 import { rateLimit } from '../middleware/rateLimit.middleware';
 
 const upload = multer({
@@ -22,8 +22,8 @@ const upload = multer({
 
 const router = Router();
 
-router.post('/', optionalAuth, rateLimit, upload.single('file'), validate(analyzeSchema), analyzeController.analyze);
+router.post('/', optionalAuthAllowExtension, rateLimit, upload.single('file'), validate(analyzeSchema), analyzeController.analyze);
 router.get('/history', optionalAuth, rateLimit, analyzeController.getHistory);
-router.get('/:id', optionalAuth, rateLimit, analyzeController.getReport);
+router.get('/:id', optionalAuthAllowExtension, rateLimit, analyzeController.getReport);
 
 export default router;

@@ -7,8 +7,17 @@ export class ReportController {
   async getReport(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const report = await analysisService.getReportById(id);
-      
+      const userId = req.user?.id;
+      if (!userId) {
+        const response: ApiResponse<null> = {
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+        };
+        res.status(401).json(response);
+        return;
+      }
+      const report = await analysisService.getReportById(id, userId);
+
       if (!report) {
         const response: ApiResponse<null> = {
           success: false,
@@ -40,11 +49,15 @@ export class ReportController {
         return;
       }
 
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
+      let page = parseInt(req.query.page as string, 10);
+      if (isNaN(page) || page < 1) page = 1;
+
+      let limit = parseInt(req.query.limit as string, 10);
+      if (isNaN(limit) || limit < 1) limit = 20;
+      limit = Math.min(limit, 50);
 
       const result = await analysisService.getHistory(userId, page, limit);
-      
+
       const response: ApiResponse<typeof result> = {
         success: true,
         data: result,

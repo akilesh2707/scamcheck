@@ -1,4 +1,5 @@
 import { config } from '../config/env';
+import { requestContext } from '../middleware/requestContext.middleware';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -6,22 +7,25 @@ interface LogEntry {
   level: LogLevel;
   message: string;
   timestamp: string;
+  requestId?: string;
   meta?: Record<string, unknown>;
 }
 
 class Logger {
   private formatEntry(level: LogLevel, message: string, meta?: Record<string, unknown>): LogEntry {
+    const requestId = requestContext.getStore();
     return {
       level,
       message,
       timestamp: new Date().toISOString(),
+      requestId,
       meta,
     };
   }
 
   private output(entry: LogEntry): void {
     const logLine = JSON.stringify(entry);
-    
+
     if (config.nodeEnv === 'production') {
       console.log(logLine);
     } else {
@@ -33,7 +37,8 @@ class Logger {
         reset: '\x1b[0m',
       };
       const color = colors[entry.level] || colors.reset;
-      console.log(`${color}[${entry.level.toUpperCase()}]${colors.reset} ${entry.message}`, entry.meta || '');
+      const reqIdStr = entry.requestId ? ` [${entry.requestId}]` : '';
+      console.log(`${color}[${entry.level.toUpperCase()}]${reqIdStr}${colors.reset} ${entry.message}`, entry.meta || '');
     }
   }
 

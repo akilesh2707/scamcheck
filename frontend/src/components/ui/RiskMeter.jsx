@@ -8,7 +8,7 @@ export default function RiskMeter({ score = 0, tone = 'neutral' }) {
   const colors = toneColors(tone);
 
   useEffect(() => {
-    const target = Math.max(2, Math.min(100, score));
+    const target = score == null ? 0 : Math.max(2, Math.min(100, score));
     const start = performance.now();
     const duration = 900;
     function tick(now) {
@@ -17,8 +17,10 @@ export default function RiskMeter({ score = 0, tone = 'neutral' }) {
       setWidth(eased * target);
       if (t < 1) frame.current = requestAnimationFrame(tick);
     }
-    frame.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame.current);
+    if (score != null) {
+      frame.current = requestAnimationFrame(tick);
+    }
+    return () => frame.current && cancelAnimationFrame(frame.current);
   }, [score]);
 
   return (

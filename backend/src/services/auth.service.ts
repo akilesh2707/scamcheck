@@ -1,10 +1,22 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { createClient } from 'redis';
+import crypto from 'crypto';
 import { User } from '../models/User';
 import { UserProfile } from '../models/UserProfile';
 import { config } from '../config/env';
 import { AppError, ValidationError, NotFoundError } from '../utils/errors';
 import { logger } from '../utils/logger';
+
+const redisClient = createClient({ url: config.redis.url });
+redisClient.on('error', (err) => logger.error('Auth redis error', { error: err.message }));
+redisClient.connect().catch(() => {});
+
+export const closeAuthRedis = async () => {
+  if (redisClient.isOpen) {
+    await redisClient.quit();
+  }
+};
 
 export class AuthService {
   async register(email: string, password: string, name?: string): Promise<{ user: any; token: string }> {
@@ -14,7 +26,7 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    
+
     const user = await User.create({
       email: email.toLowerCase(),
       passwordHash,
@@ -62,7 +74,7 @@ export class AuthService {
     }
 
     const profile = await UserProfile.findOne({ userId });
-    
+
     return {
       ...this.sanitizeUser(user),
       profile: profile || null,
@@ -104,11 +116,43 @@ export class AuthService {
     return UserProfile.findOne({ userId });
   }
 
+  async generatePairingCode(userId: string): Promise<string> {
+    const code = crypto.randomInt(100000, 999999).toString();
+    await redisClient.setEx(`pairing:${code}`, 300, userId); // 5 minutes expiry
+    logger.info('Generated extension pairing code', { userId });
+    return code;
+  }
+
+  async exchangePairingCode(code: string): Promise<string> {
+    const userId = await redisClient.get(`pairing:${code}`);
+    if (!userId) {
+      throw new AppError('INVALID_CODE', 'Invalid or expired pairing code', 400);
+    }
+
+    await redisClient.del(`pairing:${code}`);
+
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    logger.info('Exchanged extension pairing code', { userId });
+    return this.generateExtensionToken(user);
+  }
+
   private generateToken(user: any): string {
     return jwt.sign(
-      { id: user._id.toString(), email: user.email, role: user.role },
+      { id: user._id.toString(), email: user.email, role: user.role, type: 'web' },
       config.jwt.secret,
-      { expiresIn: config.jwt.expiresIn as any }
+      { expiresIn: config.jwt.expiresIn as any, audience: 'scamcheck-web' }
+    );
+  }
+
+  private generateExtensionToken(user: any): string {
+    return jwt.sign(
+      { id: user._id.toString(), email: user.email, role: user.role, type: 'extension' },
+      config.jwt.secret,
+      { expiresIn: '14d', audience: 'scamcheck-extension', jwtid: crypto.randomUUID() }
     );
   }
 

@@ -44,16 +44,16 @@ def is_safe_url(url: str) -> bool:
         parsed = urlparse(url)
         if parsed.scheme not in ["http", "https"]:
             return False
-            
+
         ip = socket.gethostbyname(parsed.hostname)
         # Block private and loopback IPs
         if ip.startswith("127.") or ip.startswith("10.") or ip.startswith("192.168.") or ip.startswith("172."):
             # Note: 172. is 172.16.0.0 to 172.31.255.255, this is a simple check
             return False
-            
+
         if ip == "0.0.0.0" or "localhost" in parsed.hostname.lower():
             return False
-            
+
         return True
     except:
         return False
@@ -63,9 +63,9 @@ async def analyze_website(request: WebsiteAnalysisRequest):
     opportunity = request.opportunity
     urls = opportunity.urls or []
     website = (opportunity.organization or {}).get("website", "")
-    
+
     target_url = website or (urls[0] if urls else None)
-    
+
     if not target_url:
         return WebsiteAnalysisResponse(
             hasHttps=False,
@@ -74,23 +74,23 @@ async def analyze_website(request: WebsiteAnalysisRequest):
             hasRefundPolicy=False,
             hasContactInfo=False,
             score=0,
-            evidence=[{"claim": "Website URL", "status": "NOT_FOUND", "details": "No website URL provided"}]
+            evidence=[{"claim": "Website URL", "status": "UNAVAILABLE", "details": "No website URL provided"}]
         )
-        
+
     has_https = target_url.startswith("https://")
     parsed = urlparse(target_url)
     domain = parsed.hostname or ""
-    
+
     evidence = [
         {"claim": "HTTPS Check", "status": "SUPPORTED" if has_https else "CONTRADICTED", "details": f"URL uses {'HTTPS' if has_https else 'HTTP'}"},
         {"claim": "Domain extracted", "status": "SUPPORTED", "details": f"Domain: {domain}"},
     ]
-    
+
     has_privacy = False
     has_terms = False
     has_contact = False
     page_accessible = False
-    
+
     if is_safe_url(target_url):
         try:
             headers = {"User-Agent": "ScamCheck-Bot/1.0"}
@@ -98,7 +98,7 @@ async def analyze_website(request: WebsiteAnalysisRequest):
             if resp.status_code == 200:
                 page_accessible = True
                 evidence.append({"claim": "Page Accessibility", "status": "SUPPORTED", "details": "Homepage returned HTTP 200"})
-                
+
                 soup = BeautifulSoup(resp.text, 'html.parser')
                 links = soup.find_all('a', href=True)
                 for a in links:
@@ -138,7 +138,7 @@ async def analyze_website(request: WebsiteAnalysisRequest):
                         reg_date = ev.get("eventDate")
                     elif ev.get("eventAction") == "expiration":
                         exp_date = ev.get("eventDate")
-                
+
                 entities = data.get("entities", [])
                 registrar = None
                 for ent in entities:
@@ -149,20 +149,20 @@ async def analyze_website(request: WebsiteAnalysisRequest):
                                 if item[0] == "fn":
                                     registrar = item[3]
                                     break
-                
+
                 details = []
                 if registrar:
                     details.append(f"Registrar: {registrar}")
                 else:
                     details.append("Registrar: Redacted/Unknown")
-                    
+
                 if reg_date:
                     details.append(f"Registered: {reg_date}")
                     # Basic age calculation for display could go here, but for now just show date
-                
+
                 if exp_date:
                     details.append(f"Expires: {exp_date}")
-                
+
                 evidence.append({"claim": "RDAP Domain Registration", "status": "SUPPORTED", "details": " | ".join(details)})
             elif rdap_resp.status_code == 404:
                 evidence.append({"claim": "RDAP Domain Registration", "status": "CONTRADICTED", "details": "Domain not found in RDAP registry."})
@@ -178,7 +178,7 @@ async def analyze_website(request: WebsiteAnalysisRequest):
         score += 20
     if has_privacy and has_terms:
         score += 20
-        
+
     return WebsiteAnalysisResponse(
         hasHttps=has_https,
         hasPrivacyPolicy=has_privacy,

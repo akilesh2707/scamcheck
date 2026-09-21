@@ -81,8 +81,13 @@ function normalizeError(error) {
   }
 
   if (status === 400) {
+    let msg = serverError?.message || 'Paste an opportunity message or enter a valid URL.';
+    if (serverError?.code === 'SCAMCHECK_INVALID_INPUT' && Array.isArray(serverError?.details) && serverError.details.length > 0) {
+      msg = serverError.details[0].message;
+    }
+
     return new ApiError({
-      message: serverError?.message || 'Paste an opportunity message or enter a valid URL.',
+      message: msg,
       code: serverError?.code || 'INVALID_INPUT',
       status,
       details: serverError?.details,
@@ -147,6 +152,19 @@ export const api = {
       });
     }),
 
+  analyzePdf: (file, userProfile) =>
+    request(() => {
+      const formData = new window.FormData();
+      formData.append('inputType', 'pdf');
+      formData.append('file', file);
+      if (userProfile) {
+        formData.append('userProfile', JSON.stringify(userProfile));
+      }
+      return client.post('/analyze', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }),
+
   getReport: (id) => request(() => client.get(`/analyze/${id}`)),
 
   getHistory: (page = 1, limit = 20) =>
@@ -158,6 +176,12 @@ export const api = {
   login: (email, password) => request(() => client.post('/auth/login', { email, password })),
 
   me: () => request(() => client.get('/auth/me')),
+
+  getUserProfile: () => request(() => client.get('/auth/user-profile')),
+
+  updateUserProfile: (profile) => request(() => client.put('/auth/user-profile', profile)),
+
+  getExtensionCode: () => request(() => client.post('/auth/extension/code')),
 };
 
 export function isValidUrl(value) {

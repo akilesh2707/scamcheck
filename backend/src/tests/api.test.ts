@@ -1,6 +1,5 @@
 import request from 'supertest';
 import express from 'express';
-import { createApp } from '../app';
 import { analysisService } from '../services/analysis.service';
 import { mlClient } from '../services/mlClient.service';
 import { AnalysisReport } from '../types/report';
@@ -29,6 +28,11 @@ jest.mock('../services/mlClient.service', () => ({
   },
 }));
 
+import mongoose from 'mongoose';
+import jwt from 'jsonwebtoken';
+import { config } from '../config/env';
+import { User } from '../models/User';
+import { createApp } from '../app';
 import { analysisService as mockAnalysisService } from '../services/analysis.service';
 import { mlClient as mockMlClient } from '../services/mlClient.service';
 
@@ -37,9 +41,23 @@ const mockedMlClient = mockMlClient as jest.Mocked<typeof mlClient>;
 
 describe('API Endpoints', () => {
   let app: express.Application;
+  let testUserToken: string;
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    await mongoose.connect(config.mongodb.uri);
     app = createApp();
+
+    await User.deleteMany({ email: 'api_test_unique@example.com' });
+    const testUser = await User.create({
+      email: 'api_test_unique@example.com',
+      passwordHash: 'hashed',
+      name: 'Test User'
+    });
+    testUserToken = jwt.sign({ id: testUser._id, email: testUser.email, role: 'user' }, config.jwt.secret, { expiresIn: '1h' });
+  });
+
+  afterAll(async () => {
+    await mongoose.disconnect();
   });
 
   beforeEach(() => {
@@ -75,7 +93,7 @@ describe('API Endpoints', () => {
         .expect(400);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error.code).toBe('INVALID_INPUT');
+      expect(response.body.error.code).toBe('SCAMCHECK_INVALID_INPUT');
     });
 
     it('should return 400 for invalid input type', async () => {
@@ -93,17 +111,27 @@ describe('API Endpoints', () => {
         id: 'test-id',
         opportunity: { type: 'INTERNSHIP' as OpportunityType, role: 'Software Developer Intern' },
         risk: { score: 65, level: 'HIGH', indicators: [], weights: {} },
-        credibility: { 
-          score: 40, 
+        credibility: {
+          score: 40,
           website: { hasHttps: true, hasPrivacyPolicy: false, hasTerms: false, hasRefundPolicy: false, hasContactInfo: false, evidence: [] },
           company: { emailDomainMatch: false, applicationDomainMatch: false, contactConsistency: false, evidence: [] },
-          evidence: [] 
+          evidence: []
         },
         payment: { required: true, amount: 2999, status: 'VERIFIED', confidence: 0.8, evidence: [] },
-        suitability: { score: null, breakdown: {}, skillGap: [], status: 'NOT_IMPLEMENTED' },
+        suitability: { overallScore: null, breakdown: { skills: {score: null, status: 'UNAVAILABLE'}, education: {score: null, status: 'UNAVAILABLE'}, experience: {score: null, status: 'UNAVAILABLE'}, careerGoals: {score: null, status: 'UNAVAILABLE'}, location: {score: null, status: 'UNAVAILABLE'}, compensation: {score: null, status: 'UNAVAILABLE'}, budget: {score: null, status: 'UNAVAILABLE'} }, skillGap: [], status: 'UNAVAILABLE' },
         alternatives: [],
         value: { score: null, potentialSaving: 0, alternatives: [] },
-        recommendation: { decision: 'AVOID_PAYMENT', reasons: [], nextSteps: [] },
+        recommendation: {
+          decision: 'AVOID_PAYMENT',
+          summary: '',
+          verifiedFacts: [],
+          unverifiedClaims: [],
+          cautionarySignals: [],
+          profileMatches: [],
+          paymentAdvisory: null,
+          questionsToAsk: [],
+          nextSteps: []
+        },
         evidenceLabels: {},
         createdAt: new Date().toISOString(),
       };
@@ -129,6 +157,7 @@ describe('API Endpoints', () => {
 
       const response = await request(app)
         .get('/api/analyze/nonexistent-id')
+        .set('Authorization', `Bearer ${testUserToken}`)
         .expect(404);
 
       expect(response.body.success).toBe(false);
@@ -140,17 +169,27 @@ describe('API Endpoints', () => {
         id: 'test-id',
         opportunity: { type: 'INTERNSHIP' as OpportunityType },
         risk: { score: 30, level: 'MODERATE', indicators: [], weights: {} },
-        credibility: { 
-          score: 60, 
+        credibility: {
+          score: 60,
           website: { hasHttps: true, hasPrivacyPolicy: false, hasTerms: false, hasRefundPolicy: false, hasContactInfo: false, evidence: [] },
           company: { emailDomainMatch: false, applicationDomainMatch: false, contactConsistency: false, evidence: [] },
-          evidence: [] 
+          evidence: []
         },
         payment: { required: false, amount: null, status: 'NOT_FOUND', confidence: 0.5, evidence: [] },
-        suitability: { score: null, breakdown: {}, skillGap: [], status: 'NOT_IMPLEMENTED' },
+        suitability: { overallScore: null, breakdown: { skills: {score: null, status: 'UNAVAILABLE'}, education: {score: null, status: 'UNAVAILABLE'}, experience: {score: null, status: 'UNAVAILABLE'}, careerGoals: {score: null, status: 'UNAVAILABLE'}, location: {score: null, status: 'UNAVAILABLE'}, compensation: {score: null, status: 'UNAVAILABLE'}, budget: {score: null, status: 'UNAVAILABLE'} }, skillGap: [], status: 'UNAVAILABLE' },
         alternatives: [],
         value: { score: null, potentialSaving: 0, alternatives: [] },
-        recommendation: { decision: 'VERIFY_FIRST', reasons: [], nextSteps: [] },
+        recommendation: {
+          decision: 'VERIFY_FIRST',
+          summary: '',
+          verifiedFacts: [],
+          unverifiedClaims: [],
+          cautionarySignals: [],
+          profileMatches: [],
+          paymentAdvisory: null,
+          questionsToAsk: [],
+          nextSteps: []
+        },
         evidenceLabels: {},
         createdAt: new Date().toISOString(),
       };
@@ -159,6 +198,7 @@ describe('API Endpoints', () => {
 
       const response = await request(app)
         .get('/api/analyze/test-id')
+        .set('Authorization', `Bearer ${testUserToken}`)
         .expect(200);
 
       expect(response.body.success).toBe(true);
@@ -168,34 +208,64 @@ describe('API Endpoints', () => {
 
   describe('GET /api/analyze/history', () => {
     it('should return 401 for unauthenticated request', async () => {
-      const response = await request(app)
-        .get('/api/analyze/history')
-        .expect(401);
-
+      const response = await request(app).get('/api/analyze/history').expect(401);
       expect(response.body.success).toBe(false);
       expect(response.body.error.code).toBe('UNAUTHORIZED');
     });
 
     it('should return paginated history for authenticated user', async () => {
-      const mockHistory = {
+      mockedAnalysisService.getHistory.mockResolvedValue({
         reports: [],
         total: 0,
         page: 1,
         totalPages: 0,
-      };
-
-      mockedAnalysisService.getHistory.mockResolvedValue(mockHistory);
+      });
 
       const response = await request(app)
-        .get('/api/analyze/history')
-        .set('Authorization', 'Bearer valid-token')
-        .expect(401);
+        .get('/api/analyze/history?page=1&limit=10')
+        .set('Authorization', `Bearer ${testUserToken}`)
+        .expect(200);
 
-      // Note: This will fail with 401 because the token is not valid
-      // In a real test, we would generate a valid JWT token
-      expect(response.body.error.code).toBe('UNAUTHORIZED');
+      expect(response.body.success).toBe(true);
+      expect(mockedAnalysisService.getHistory).toHaveBeenCalledWith(expect.any(String), 1, 10);
+    });
+
+    it('should enforce maximum pagination limit of 50', async () => {
+      mockedAnalysisService.getHistory.mockResolvedValue({
+        reports: [],
+        total: 0,
+        page: 1,
+        totalPages: 0,
+      });
+
+      const response = await request(app)
+        .get('/api/analyze/history?page=1&limit=1000000')
+        .set('Authorization', `Bearer ${testUserToken}`)
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(mockedAnalysisService.getHistory).toHaveBeenCalledWith(expect.any(String), 1, 50);
+    });
+
+    it('should handle invalid pagination limits gracefully', async () => {
+      mockedAnalysisService.getHistory.mockResolvedValue({
+        reports: [],
+        total: 0,
+        page: 1,
+        totalPages: 0,
+      });
+
+      const response = await request(app)
+        .get('/api/analyze/history?page=-5&limit=invalid')
+        .set('Authorization', `Bearer ${testUserToken}`)
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(mockedAnalysisService.getHistory).toHaveBeenCalledWith(expect.any(String), 1, 20);
     });
   });
+
+
 
   describe('ML Service Unavailable', () => {
     it('should handle ML service unavailable gracefully', async () => {
@@ -203,17 +273,27 @@ describe('API Endpoints', () => {
         id: 'test-id',
         opportunity: { type: 'INTERNSHIP' as OpportunityType, role: 'Software Developer Intern' },
         risk: { score: 65, level: 'HIGH', indicators: [], weights: {} },
-        credibility: { 
-          score: 40, 
+        credibility: {
+          score: 40,
           website: { hasHttps: true, hasPrivacyPolicy: false, hasTerms: false, hasRefundPolicy: false, hasContactInfo: false, evidence: [] },
           company: { emailDomainMatch: false, applicationDomainMatch: false, contactConsistency: false, evidence: [] },
-          evidence: [] 
+          evidence: []
         },
         payment: { required: true, amount: 2999, status: 'VERIFIED', confidence: 0.8, evidence: [] },
-        suitability: { score: null, breakdown: {}, skillGap: [], status: 'NOT_IMPLEMENTED' },
+        suitability: { overallScore: null, breakdown: { skills: {score: null, status: 'UNAVAILABLE'}, education: {score: null, status: 'UNAVAILABLE'}, experience: {score: null, status: 'UNAVAILABLE'}, careerGoals: {score: null, status: 'UNAVAILABLE'}, location: {score: null, status: 'UNAVAILABLE'}, compensation: {score: null, status: 'UNAVAILABLE'}, budget: {score: null, status: 'UNAVAILABLE'} }, skillGap: [], status: 'UNAVAILABLE' },
         alternatives: [],
         value: { score: null, potentialSaving: 0, alternatives: [] },
-        recommendation: { decision: 'AVOID_PAYMENT', reasons: [], nextSteps: [] },
+        recommendation: {
+          decision: 'AVOID_PAYMENT',
+          summary: '',
+          verifiedFacts: [],
+          unverifiedClaims: [],
+          cautionarySignals: [],
+          profileMatches: [],
+          paymentAdvisory: null,
+          questionsToAsk: [],
+          nextSteps: []
+        },
         evidenceLabels: {},
         createdAt: new Date().toISOString(),
       };
@@ -233,7 +313,7 @@ describe('API Endpoints', () => {
 });
 
 describe('Evidence Framework', () => {
-  const evidenceStatuses = ['OBSERVED', 'VERIFIED', 'LIKELY', 'UNCERTAIN', 'CONTRADICTED', 'NOT_FOUND', 'NOT_IMPLEMENTED'];
+  const evidenceStatuses = ['SUPPORTED', 'CONTRADICTED', 'NOT_VERIFIED', 'UNAVAILABLE', 'INFERRED'];
 
   evidenceStatuses.forEach(status => {
     it(`should handle ${status} evidence status`, () => {

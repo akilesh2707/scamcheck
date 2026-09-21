@@ -44,7 +44,7 @@ describe('Integration Tests (E2E API Boundaries)', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error.code).toBe('SSRF_BLOCKED');
+      expect(response.body.error.code).toBe('SCAMCHECK_INVALID_INPUT');
     });
 
     it('should reject private IP URLs', async () => {
@@ -56,7 +56,7 @@ describe('Integration Tests (E2E API Boundaries)', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error.code).toBe('SSRF_BLOCKED');
+      expect(response.body.error.code).toBe('SCAMCHECK_INVALID_INPUT');
     });
 
     it('should reject loopback URLs', async () => {
@@ -68,7 +68,7 @@ describe('Integration Tests (E2E API Boundaries)', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error.code).toBe('SSRF_BLOCKED');
+      expect(response.body.error.code).toBe('SCAMCHECK_INVALID_INPUT');
     });
   });
 
@@ -85,7 +85,7 @@ describe('Integration Tests (E2E API Boundaries)', () => {
       fs.unlinkSync(dummyFilePath);
 
       // Multer will throw error if not png/jpg
-      expect(response.status).toBe(500); 
+      expect(response.status).toBe(500);
     });
 
     it('should require file for screenshot inputType', async () => {
@@ -111,10 +111,10 @@ describe('Integration Tests (E2E API Boundaries)', () => {
       if (response.status !== 200) {
         console.error('Test failed, response body:', response.body);
       }
-      
+
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      
+
       // Verify that analysisService was called with the combined text
       expect(analysisService.analyzeText).toHaveBeenCalledWith(
         expect.stringContaining('[Source: screenshot_ocr]\n\nExtracted text from screenshot'),

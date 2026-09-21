@@ -1,11 +1,13 @@
-export type OpportunityType = 
-  | 'INTERNSHIP' 
-  | 'JOB' 
-  | 'COURSE' 
-  | 'CERTIFICATION' 
-  | 'TRAINING' 
-  | 'SCHOLARSHIP' 
-  | 'FELLOWSHIP' 
+import { Evidence } from './evidence';
+
+export type OpportunityType =
+  | 'INTERNSHIP'
+  | 'JOB'
+  | 'COURSE'
+  | 'CERTIFICATION'
+  | 'TRAINING'
+  | 'SCHOLARSHIP'
+  | 'FELLOWSHIP'
   | 'OTHER';
 
 export interface Organization {
@@ -55,6 +57,6 @@ export interface ExtractedOpportunity {
   skills?: string[];
   claimedBenefits?: string[];
   deadlines?: string[];
-  claims?: string[];
+  claims?: Evidence[];
   rawText?: string;
 }

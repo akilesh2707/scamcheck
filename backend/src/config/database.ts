@@ -1,16 +1,20 @@
 import mongoose from 'mongoose';
 import { config } from './env';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 
-let mongoServer: MongoMemoryServer | null = null;
+let mongoServer: any = null;
 
 export const connectDatabase = async (): Promise<void> => {
   try {
     await mongoose.connect(config.mongodb.uri, { serverSelectionTimeoutMS: 2000 });
     console.log('MongoDB connected successfully');
   } catch (error) {
+    if (config.nodeEnv === 'production') {
+      console.error('MongoDB connection error in production:', error);
+      throw error;
+    }
     console.log('MongoDB connection error. Starting fallback in-memory MongoDB...');
     try {
+      const { MongoMemoryServer } = await import('mongodb-memory-server');
       mongoServer = await MongoMemoryServer.create();
       const uri = mongoServer.getUri();
       await mongoose.connect(uri);

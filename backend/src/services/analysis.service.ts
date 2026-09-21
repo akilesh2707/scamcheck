@@ -44,73 +44,106 @@ function generateRecommendation(
   payment: PaymentVerification,
   suitability: SuitabilityAnalysis
 ): Recommendation {
-  const reasons: string[] = [];
+  const verifiedFacts: string[] = [];
+  const unverifiedClaims: string[] = [];
+  const cautionarySignals: string[] = [];
+  const profileMatches: string[] = [];
+  const questionsToAsk: string[] = [];
   const nextSteps: string[] = [];
 
-  // Matrix:
-  // IF Risk == VERY_HIGH OR Payment == CONTRADICTED -> AVOID
-  // IF Risk == HIGH OR Credibility.website.status == CONTRADICTED -> CAUTION
-  // IF Risk == MEDIUM OR Payment == NEEDS_VERIFICATION -> VERIFY_BEFORE_PROCEEDING
-  // ELSE -> SAFE
-
-  if (risk.level === 'VERY_HIGH') {
-    reasons.push('Critical high-risk indicators detected.');
-    nextSteps.push('Do not proceed under any circumstances.');
+  // 1. Process Risk
+  if (risk.level === 'VERY_HIGH' || risk.level === 'HIGH') {
+    cautionarySignals.push(`High risk detected (Score: ${risk.score}). Proceed with extreme caution.`);
+    risk.indicators.forEach(ind => {
+      cautionarySignals.push(`${ind.title}: ${ind.explanation}`);
+    });
+  } else if (risk.level === 'MEDIUM') {
+    unverifiedClaims.push('Some risk indicators are present. Clarification needed.');
   }
 
-  if (payment.required && payment.status === 'CONTRADICTED') {
-    reasons.push('Payment requirement contradicts known legitimate sources.');
-    nextSteps.push('Do not make the requested payment.');
-  }
-
-  if (risk.level === 'HIGH') {
-    reasons.push('High-risk indicators observed in the opportunity description.');
-    nextSteps.push('Extreme caution advised. Verify all claims independently.');
-  }
-
+  // 2. Process Credibility
   const credStatus = credibility.evidence?.find(e => e.claim === 'Page Accessibility')?.status;
   if (credStatus === 'CONTRADICTED' || (credibility.website.score !== undefined && credibility.website.score < 40)) {
-    reasons.push('Website or organization credibility is highly suspect.');
-    nextSteps.push('Verify the organization through its official known channels, not the provided links.');
+    cautionarySignals.push('Website or organization credibility could not be established.');
+    questionsToAsk.push('Can you provide an official company email or verified website link?');
+  } else if (credibility.website.hasHttps && credibility.company.organizationName) {
+    unverifiedClaims.push(`Organization claims to be ${credibility.company.organizationName} and uses a secure domain, but its identity is not independently verified.`);
   }
 
-  if (risk.level === 'MEDIUM') {
-    reasons.push('Some risk indicators are present that warrant further investigation.');
-    nextSteps.push('Do not share sensitive information until verified.');
+  // 3. Process Payment
+  let paymentAdvisory: string | null = null;
+  if (payment.required && payment.status === 'CONTRADICTED') {
+    cautionarySignals.push('Payment requirement contradicts known legitimate sources.');
+    paymentAdvisory = 'Do not pay. Legitimate organizations typically do not ask for upfront fees for this type of opportunity.';
+    nextSteps.push('Cease communication if they insist on payment.');
+  } else if (payment.required) {
+    unverifiedClaims.push(`An upfront payment of ${payment.amount || 'an unspecified amount'} ${payment.currency || ''} is requested.`);
+    paymentAdvisory = 'Verify if this fee is standard practice before paying.';
+    questionsToAsk.push('Is the requested fee refundable? What exactly does it cover?');
+  } else if (payment.status === 'NEGATED') {
+    verifiedFacts.push('The opportunity explicitly states no payment is required.');
   }
 
-  if (payment.required && (payment.status === 'NEEDS_VERIFICATION' || payment.status === 'UNCERTAIN')) {
-    reasons.push('An upfront payment is requested but could not be independently verified as legitimate.');
-    nextSteps.push('Verify if this fee is standard practice for this organization before paying.');
+  // 4. Process Suitability
+  if (suitability.status === 'SUPPORTED' || suitability.status === 'INFERRED') {
+    const bd = suitability.breakdown;
+    if (bd.skills.status === 'SUPPORTED' || bd.skills.status === 'INFERRED') {
+      profileMatches.push(`Your skills match the requirements (${bd.skills.score}% match).`);
+    }
+    if (suitability.skillGap.length > 0) {
+      const gaps = suitability.skillGap.map(g => g.skill).join(', ');
+      nextSteps.push(`Consider learning or improving: ${gaps}`);
+    }
+    if (bd.budget.status === 'SUPPORTED' && bd.budget.score === 100) {
+      profileMatches.push('The opportunity fits within your stated budget constraints.');
+    } else if (bd.budget.status === 'SUPPORTED' && bd.budget.score === 0) {
+      cautionarySignals.push('This opportunity exceeds your maximum payment willingness.');
+    }
   }
 
-  if (risk.level === 'LOW' && reasons.length === 0) {
-    return {
-      decision: 'SAFE_TO_EXPLORE',
-      reasons: ['No major risk indicators detected in the provided text.'],
-      nextSteps: ['Proceed with standard due diligence.'],
-    };
+  // Decision Logic
+  let decision: Recommendation['decision'] = 'SAFE_TO_EXPLORE';
+
+  const hasIdentityMismatch = credibility.company && (
+    credibility.company.emailDomainMatch === false ||
+    credibility.company.contactConsistency === false
+  );
+
+  const hasUnresolvedCredibility =
+    credibility.evidence?.some(e => e.status === 'NOT_VERIFIED' || e.status === 'UNAVAILABLE' || e.status === 'CONTRADICTED') ||
+    credibility.company?.evidence?.some((e: any) => e.status === 'NOT_VERIFIED' || e.status === 'UNAVAILABLE' || e.status === 'CONTRADICTED');
+
+  if (hasIdentityMismatch) {
+    cautionarySignals.push('Organization identity or contact details do not match established records.');
+  }
+  if (hasUnresolvedCredibility && !hasIdentityMismatch) {
+    unverifiedClaims.push('Key credibility or identity signals could not be fully verified.');
   }
 
   if (risk.level === 'VERY_HIGH' || (payment.required && payment.status === 'CONTRADICTED')) {
-    return {
-      decision: 'AVOID_PAYMENT',
-      reasons,
-      nextSteps,
-    };
+    decision = 'AVOID_PAYMENT';
+    nextSteps.push('Do not proceed under any circumstances.');
+  } else if (risk.level === 'HIGH' || credStatus === 'CONTRADICTED' || hasIdentityMismatch) {
+    decision = 'CAUTION';
+    nextSteps.push('Verify the organization through its official known channels, not the provided links.');
+  } else if (risk.level === 'MEDIUM' || hasUnresolvedCredibility || (payment.required && (payment.status === 'UNKNOWN' || payment.status === 'NOT_IMPLEMENTED'))) {
+    decision = 'VERIFY_FIRST';
+    nextSteps.push('Do not share sensitive information until verified.');
   }
 
-  if (risk.level === 'HIGH' || credStatus === 'CONTRADICTED') {
-    return {
-      decision: 'CAUTION',
-      reasons,
-      nextSteps,
-    };
+  if (decision === 'SAFE_TO_EXPLORE') {
+    nextSteps.push('Proceed with standard due diligence.');
   }
 
   return {
-    decision: 'VERIFY_FIRST',
-    reasons,
+    decision,
+    summary: `Analysis resulted in a decision of ${decision.replace('_', ' ')}.`,
+    verifiedFacts,
+    unverifiedClaims,
+    cautionarySignals,
+    profileMatches,
+    paymentAdvisory,
+    questionsToAsk,
     nextSteps,
   };
 }
@@ -129,12 +162,12 @@ export class AnalysisService {
     logger.info('Starting analysis', { textLength: text.length, userId });
 
     let extractedOpportunity: ExtractedOpportunity;
-    
+
     try {
       extractedOpportunity = await mlClient.extractOpportunity(text);
       logger.info('Opportunity extracted', { type: extractedOpportunity.type });
     } catch (error) {
-      logger.warn('ML extraction failed, using basic extraction', { error: (error as Error).message });
+      logger.warn('ML extraction failed, falling back to local extraction', { error: (error as Error).message });
       extractedOpportunity = this.basicExtraction(text);
     }
 
@@ -161,8 +194,13 @@ export class AnalysisService {
         weights: RISK_WEIGHTS,
       };
     } catch (error) {
-      logger.warn('ML risk analysis failed, using local rules', { error: (error as Error).message });
-      riskAnalysis = this.localRiskAnalysis(extractedOpportunity);
+      logger.warn('ML risk analysis failed', { error: (error as Error).message });
+      riskAnalysis = {
+        score: 0,
+        level: 'UNKNOWN',
+        indicators: [],
+        weights: RISK_WEIGHTS,
+      };
     }
 
     try {
@@ -178,15 +216,52 @@ export class AnalysisService {
           score: mlCred.score || 50,
           evidence: mlCred.evidence || [],
         },
-        company: { emailDomainMatch: false, applicationDomainMatch: false, contactConsistency: false, evidence: [] },
+        company: ((): any => {
+          const oppEmail = extractedOpportunity.organization?.email?.toLowerCase();
+          const oppWebsite = extractedOpportunity.organization?.website?.toLowerCase();
+          let emailDomainMatch = false;
+          const applicationDomainMatch = false;
+          const compEvidence: any[] = [];
+
+          if (oppEmail && oppWebsite) {
+            const emailDomain = oppEmail.split('@')[1];
+            const orgDomain = oppWebsite.replace(/https?:\/\//, '').split('/')[0];
+            if (emailDomain && orgDomain) {
+              const commonDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com'];
+              emailDomainMatch = orgDomain.includes(emailDomain) || commonDomains.includes(emailDomain);
+              compEvidence.push({
+                claim: 'Contact email domain matches organization website',
+                status: emailDomainMatch ? 'SUPPORTED' : 'CONTRADICTED',
+                details: emailDomainMatch ? 'Email domain is consistent with the organization domain.' : 'Organization email domain differs from the provided website.',
+                observedAt: new Date().toISOString()
+              });
+            }
+          } else {
+            compEvidence.push({
+              claim: 'Contact email domain matches organization website',
+              status: 'NOT_VERIFIED',
+              details: 'Insufficient information to verify email and website domain match.',
+              observedAt: new Date().toISOString()
+            });
+          }
+
+          return {
+            organizationName: extractedOpportunity.organization?.name,
+            emailDomainMatch,
+            applicationDomainMatch,
+            contactConsistency: emailDomainMatch,
+            evidence: compEvidence
+          };
+        })(),
         evidence: mlCred.evidence || [],
       };
     } catch (error) {
       logger.warn('ML credibility analysis failed', { error: (error as Error).message });
       credibilityAnalysis = {
-        website: { hasHttps: false, hasPrivacyPolicy: false, hasTerms: false, hasRefundPolicy: false, hasContactInfo: false, evidence: [] },
-        company: { emailDomainMatch: false, applicationDomainMatch: false, contactConsistency: false, evidence: [] },
-        evidence: [],
+        score: 0,
+        website: { hasHttps: false, hasPrivacyPolicy: false, hasTerms: false, hasRefundPolicy: false, hasContactInfo: false, evidence: [{ claim: 'Website analysis', status: 'UNAVAILABLE' }] },
+        company: { emailDomainMatch: false, applicationDomainMatch: false, contactConsistency: false, evidence: [{ claim: 'Company analysis', status: 'UNAVAILABLE' }] },
+        evidence: [{ claim: 'Credibility analysis', status: 'UNAVAILABLE' }],
       };
     }
 
@@ -197,11 +272,22 @@ export class AnalysisService {
         amount: mlPayment.amount,
         status: mlPayment.status as PaymentVerification['status'],
         confidence: mlPayment.confidence,
-        evidence: mlPayment.evidence.map((e) => createDefaultEvidence('', e)),
+        evidence: mlPayment.evidence.map((e: any) => ({
+          claim: e.claim || 'Payment analysis',
+          status: e.status || 'UNAVAILABLE',
+          details: e.details,
+          observedAt: e.observedAt || new Date().toISOString()
+        })),
       };
     } catch (error) {
       logger.warn('ML payment verification failed', { error: (error as Error).message });
-      paymentVerification = this.localPaymentVerification(extractedOpportunity);
+      paymentVerification = {
+        required: null,
+        amount: null,
+        status: 'UNKNOWN',
+        confidence: 0,
+        evidence: [{ claim: 'Payment verification', status: 'UNAVAILABLE' }],
+      };
     }
 
     try {
@@ -210,25 +296,36 @@ export class AnalysisService {
     } catch (error) {
       logger.warn('ML suitability analysis failed', { error: (error as Error).message });
       suitabilityAnalysis = {
-        score: null,
-        breakdown: {},
+        overallScore: null,
+        breakdown: {
+          skills: { score: null, status: 'UNAVAILABLE', reason: 'Service failed' },
+          education: { score: null, status: 'UNAVAILABLE', reason: 'Service failed' },
+          experience: { score: null, status: 'UNAVAILABLE', reason: 'Service failed' },
+          careerGoals: { score: null, status: 'UNAVAILABLE', reason: 'Service failed' },
+          compensation: { score: null, status: 'UNAVAILABLE', reason: 'Service failed' },
+          location: { score: null, status: 'UNAVAILABLE', reason: 'Service failed' },
+          budget: { score: null, status: 'UNAVAILABLE', reason: 'Service failed' },
+        },
         skillGap: [],
-        status: 'NOT_IMPLEMENTED' as SuitabilityAnalysis['status'],
+        status: 'UNAVAILABLE',
       };
     }
 
+    let altStatus: 'COMPLETED' | 'UNAVAILABLE' = 'COMPLETED';
     try {
       const mlAlternatives = await mlClient.findAlternatives(extractedOpportunity, userProfile || {});
       alternatives = mlAlternatives.alternatives;
     } catch (error) {
       logger.warn('ML alternatives failed', { error: (error as Error).message });
       alternatives = [];
+      altStatus = 'UNAVAILABLE';
     }
 
     const valueAnalysis: ValueAnalysis = {
       score: null,
       potentialSaving: 0,
       alternatives,
+      status: altStatus,
     };
 
     const recommendation = generateRecommendation(riskAnalysis, credibilityAnalysis, paymentVerification, suitabilityAnalysis);
@@ -274,11 +371,11 @@ export class AnalysisService {
 
   private basicExtraction(text: string): ExtractedOpportunity {
     const lowerText = text.toLowerCase();
-    
+
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
     const urlRegex = /https?:\/\/[^\s]+/g;
     const phoneRegex = /[+]?[(]?[0-9]{1,3}[)]?[-\s.]?[(]?[0-9]{1,3}[)]?[-\s.]?[0-9]{4,6}/g;
-    
+
     const emails = text.match(emailRegex) || [];
     const urls = text.match(urlRegex) || [];
     const phones = text.match(phoneRegex) || [];
@@ -327,7 +424,7 @@ export class AnalysisService {
   private extractRole(text: string): { role: string; type: string } {
     const roleKeywords = ['intern', 'developer', 'engineer', 'analyst', 'manager', 'trainee', 'associate', 'specialist'];
     const sentences = text.split(/(?<=[.!?\n])/).map(s => s.trim()).filter(Boolean);
-    
+
     for (const s of sentences) {
       const sLower = s.toLowerCase();
       if (roleKeywords.some(k => sLower.includes(k))) {
@@ -491,8 +588,8 @@ export class AnalysisService {
     };
   }
 
-  async getReportById(reportId: string): Promise<AnalysisReport | null> {
-    const report = await Report.findById(reportId).lean();
+  async getReportById(reportId: string, userId: string): Promise<AnalysisReport | null> {
+    const report = await Report.findOne({ _id: reportId, userId }).lean();
     if (!report) return null;
 
     return {

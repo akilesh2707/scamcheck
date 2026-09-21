@@ -107,11 +107,11 @@ export default function ReportPage() {
           }}
         >
           <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
-            <RiskRing score={risk.score ?? 0} tone={riskInfo.tone} sublabel="/ 100" />
+            <RiskRing score={risk.score} tone={riskInfo.tone} sublabel={risk.score != null ? "/ 100" : ""} />
             <div style={{ flex: 1, minWidth: 240 }}>
               <h2 style={{ fontSize: 22, fontWeight: 800, color: `var(--sc-${riskInfo.tone})`, marginBottom: 6 }}>{riskInfo.label}</h2>
               <p style={{ fontSize: 14.5, color: 'var(--sc-text-secondary)', marginBottom: 16 }}>{recInfo.summary}</p>
-              <RiskMeter score={risk.score ?? 0} tone={riskInfo.tone} />
+              <RiskMeter score={risk.score} tone={riskInfo.tone} />
             </div>
           </div>
         </Card>
@@ -120,7 +120,7 @@ export default function ReportPage() {
       {/* Metric row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }} id="metric-grid">
         <Reveal delay={0}>
-          <MetricCard icon="alert-triangle" label="Risk" value={`${risk.score ?? '—'}/100`} sublabel={riskInfo.label} tone={riskInfo.tone} />
+          <MetricCard icon="alert-triangle" label="Risk" value={risk.score != null ? `${risk.score}/100` : '—'} sublabel={riskInfo.label} tone={riskInfo.tone} />
         </Reveal>
         <Reveal delay={60}>
           <MetricCard
@@ -131,7 +131,7 @@ export default function ReportPage() {
               !hasWebsiteData
                 ? 'No website to check'
                 : credibility.score == null
-                ? 'Not scored'
+                ? 'Analysis unavailable'
                 : credibility.score >= 70
                 ? 'Good'
                 : credibility.score >= 40
@@ -164,7 +164,7 @@ export default function ReportPage() {
               icon="target"
               label="Suitability"
               value="—"
-              sublabel={suitability.status === 'INSUFFICIENT_PROFILE_DATA' ? 'Add your profile to unlock' : 'Not available for this report'}
+              sublabel={suitability.status === 'INSUFFICIENT_PROFILE_DATA' ? 'Add your profile to unlock' : 'Suitability analysis unavailable'}
               tone="neutral"
             />
           )}
@@ -176,14 +176,34 @@ export default function ReportPage() {
         <Reveal>
           <Card style={{ height: '100%' }}>
             <SectionHeading title="Why we're concerned" />
-            {(risk.indicators || []).length === 0 ? (
+            {risk.level === 'UNKNOWN' ? (
+              <p style={{ fontSize: 13.5, color: 'var(--sc-text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Icon name="minus-circle" size={16} /> Risk analysis unavailable for this report.
+              </p>
+            ) : (risk.indicators || []).length === 0 && (!recommendation.cautionarySignals || recommendation.cautionarySignals.length === 0) && (!recommendation.unverifiedClaims || recommendation.unverifiedClaims.length === 0) ? (
               <p style={{ fontSize: 13.5, color: 'var(--sc-text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Icon name="check-circle" size={16} style={{ color: 'var(--sc-success)' }} /> No major risk indicators were found in this opportunity.
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {risk.indicators.map((ind, i) => (
+                {risk.indicators && risk.indicators.map((ind, i) => (
                   <IndicatorRow key={ind.code + i} indicator={ind} />
+                ))}
+                {(recommendation.cautionarySignals || []).map((sig, i) => (
+                  <div key={`c-${i}`} style={{ display: 'flex', gap: 12 }}>
+                    <span style={{ color: 'var(--sc-danger)', marginTop: 2, flexShrink: 0 }}>
+                      <Icon name="alert-triangle" size={16} />
+                    </span>
+                    <div style={{ fontSize: 13.5, color: 'var(--sc-text-secondary)', lineHeight: 1.5 }}>{sig}</div>
+                  </div>
+                ))}
+                {(recommendation.unverifiedClaims || []).map((sig, i) => (
+                  <div key={`u-${i}`} style={{ display: 'flex', gap: 12 }}>
+                    <span style={{ color: 'var(--sc-warning)', marginTop: 2, flexShrink: 0 }}>
+                      <Icon name="alert-circle" size={16} />
+                    </span>
+                    <div style={{ fontSize: 13.5, color: 'var(--sc-text-secondary)', lineHeight: 1.5 }}>{sig}</div>
+                  </div>
                 ))}
               </div>
             )}
@@ -201,7 +221,7 @@ export default function ReportPage() {
 
       {/* Payment */}
       <Reveal>
-        <Card style={{ marginBottom: 20 }}>
+        <Card style={{ marginBottom: 20 }} id="payment-verification">
           <SectionHeading title={<><Icon name="credit-card" size={17} /> Payment verification</>} />
           <PaymentBlock payment={payment} currency={opportunity.fees?.currency} />
         </Card>
@@ -213,13 +233,19 @@ export default function ReportPage() {
           <Card style={{ height: '100%' }}>
             <SectionHeading title="Website credibility" />
             {hasWebsiteData ? (
-              <>
-                <SignalRow label="HTTPS encryption" value={website.hasHttps} trueLabel="Detected" falseLabel="Not detected" />
-                <SignalRow label="Privacy policy" value={website.hasPrivacyPolicy} trueLabel="Found" falseLabel="Not found" />
-                <SignalRow label="Terms of service" value={website.hasTerms} trueLabel="Found" falseLabel="Not found" />
-                <SignalRow label="Refund policy" value={website.hasRefundPolicy} trueLabel="Found" falseLabel="Not found" />
-                <SignalRow label="Contact information" value={website.hasContactInfo} trueLabel="Found" falseLabel="Not found" />
-              </>
+              credibility.score == null ? (
+                <p style={{ fontSize: 13.5, color: 'var(--sc-text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Icon name="minus-circle" size={16} /> Website analysis unavailable.
+                </p>
+              ) : (
+                <>
+                  <SignalRow label="HTTPS encryption" value={website.hasHttps} trueLabel="Detected" falseLabel="Not detected" />
+                  <SignalRow label="Privacy policy" value={website.hasPrivacyPolicy} trueLabel="Found" falseLabel="Not found" />
+                  <SignalRow label="Terms of service" value={website.hasTerms} trueLabel="Found" falseLabel="Not found" />
+                  <SignalRow label="Refund policy" value={website.hasRefundPolicy} trueLabel="Found" falseLabel="Not found" />
+                  <SignalRow label="Contact information" value={website.hasContactInfo} trueLabel="Found" falseLabel="Not found" />
+                </>
+              )
             ) : (
               <p style={{ fontSize: 13.5, color: 'var(--sc-text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Icon name="minus-circle" size={16} /> No organization website was found in this opportunity to check.
@@ -266,63 +292,193 @@ export default function ReportPage() {
               {recInfo.label}
             </h2>
           </div>
-          {(recommendation.reasons || []).length > 0 && (
-            <ul style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18, paddingLeft: 4 }}>
-              {recommendation.reasons.map((r, i) => (
-                <li key={i} style={{ fontSize: 14, color: 'var(--sc-text-secondary)', display: 'flex', gap: 8 }}>
-                  <span style={{ color: `var(--sc-${recInfo.tone})` }}>—</span> {r}
-                </li>
-              ))}
-            </ul>
+          {recommendation.summary && (
+            <p style={{ fontSize: 14.5, color: 'var(--sc-text-secondary)', marginBottom: 16 }}>{recommendation.summary}</p>
           )}
-          {(recommendation.nextSteps || []).length > 0 && (
-            <div>
-              <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--sc-text)', marginBottom: 10 }}>
-                What should you do?
-              </h3>
-              <ol style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingLeft: 20 }}>
-                {recommendation.nextSteps.map((s, i) => (
-                  <li key={i} style={{ fontSize: 14, color: 'var(--sc-text-secondary)' }}>
-                    {s}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {(recommendation.cautionarySignals || []).length > 0 && (
+              <div>
+                <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--sc-danger)', marginBottom: 6 }}>Cautionary Signals</h3>
+                <ul style={{ paddingLeft: 20, fontSize: 14, color: 'var(--sc-text-secondary)' }}>
+                  {recommendation.cautionarySignals.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {(recommendation.unverifiedClaims || []).length > 0 && (
+              <div>
+                <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--sc-warning)', marginBottom: 6 }}>Unverified Claims</h3>
+                <ul style={{ paddingLeft: 20, fontSize: 14, color: 'var(--sc-text-secondary)' }}>
+                  {recommendation.unverifiedClaims.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {(recommendation.verifiedFacts || []).length > 0 && (
+              <div>
+                <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--sc-success)', marginBottom: 6 }}>Verified Facts</h3>
+                <ul style={{ paddingLeft: 20, fontSize: 14, color: 'var(--sc-text-secondary)' }}>
+                  {recommendation.verifiedFacts.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {(recommendation.profileMatches || []).length > 0 && (
+              <div>
+                <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--sc-primary)', marginBottom: 6 }}>Profile Matches</h3>
+                <ul style={{ paddingLeft: 20, fontSize: 14, color: 'var(--sc-text-secondary)' }}>
+                  {recommendation.profileMatches.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {recommendation.paymentAdvisory && (
+              <div>
+                <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--sc-text)', marginBottom: 6 }}>Payment Advisory</h3>
+                <p style={{ fontSize: 14, color: 'var(--sc-text-secondary)' }}>{recommendation.paymentAdvisory}</p>
+              </div>
+            )}
+
+            {(recommendation.questionsToAsk || []).length > 0 && (
+              <div>
+                <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--sc-text)', marginBottom: 6 }}>Questions to ask</h3>
+                <ul style={{ paddingLeft: 20, fontSize: 14, color: 'var(--sc-text-secondary)' }}>
+                  {recommendation.questionsToAsk.map((q, i) => <li key={i}>{q}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {(recommendation.nextSteps || []).length > 0 && (
+              <div>
+                <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--sc-text)', marginBottom: 6 }}>Next Steps</h3>
+                <ol style={{ paddingLeft: 20, fontSize: 14, color: 'var(--sc-text-secondary)' }}>
+                  {recommendation.nextSteps.map((s, i) => <li key={i}>{s}</li>)}
+                </ol>
+              </div>
+            )}
+          </div>
         </Card>
       </Reveal>
 
-      {/* Investigate further */}
+      {/* Suitability and Alternatives */}
       <Reveal>
-        <SectionHeading title="Want to investigate further?" />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }} id="further-grid">
-          <FurtherCard
-            icon="target"
-            title="Check suitability"
-            body="Does this opportunity match your skills and career goals?"
-            to={`/intelligence/${report.id}`}
-            state={{ report }}
-            cta="Evaluate"
-          />
-          <FurtherCard
-            icon="compass"
-            title="Find alternatives"
-            body="See free or lower-cost paths to the same outcome."
-            to={`/intelligence/${report.id}`}
-            state={{ report }}
-            cta="Explore"
-          />
-          <FurtherCard
-            icon="scale"
-            title="Opportunity intelligence"
-            body="A full breakdown of fit, payment intelligence, and alternatives."
-            to={`/intelligence/${report.id}`}
-            state={{ report }}
-            cta="Open"
-          />
-        </div>
-        <style>{`@media (max-width: 860px) { #further-grid { grid-template-columns: 1fr !important; } }`}</style>
+        <SectionHeading title="Opportunity fit & Alternatives" />
       </Reveal>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }} id="fit-grid">
+        <Reveal>
+          <Card style={{ height: '100%', borderTop: '4px solid var(--sc-success)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, gap: 12 }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Opportunity fit</h3>
+                <p style={{ fontSize: 13, color: 'var(--sc-text-secondary)', lineHeight: 1.5 }}>
+                  {suitability.status === 'COMPLETE' && suitability.score != null ? 'How well this aligns with your stated skills and goals.' : 'Add your profile when analyzing to unlock a personalized fit score.'}
+                </p>
+              </div>
+              {suitability.status === 'COMPLETE' && suitability.score != null && (
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--sc-success)', lineHeight: 1 }}>{suitability.score}<span style={{ fontSize: 14, color: 'var(--sc-text-muted)' }}>/100</span></div>
+                  <StatusChip label={suitability.score >= 70 ? 'Good match' : suitability.score >= 40 ? 'Partial match' : 'Weak match'} tone={suitability.score >= 70 ? 'success' : suitability.score >= 40 ? 'warning' : 'danger'} size="sm" />
+                </div>
+              )}
+            </div>
+            {suitability.status === 'COMPLETE' && suitability.score != null && Object.keys(suitability.breakdown || {}).length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                 {Object.entries(suitability.breakdown).map(([key, val]) => (
+                   <div key={key}>
+                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                       <span>{key}</span>
+                       <span style={{ fontWeight: 600 }}>{val.score}%</span>
+                     </div>
+                     <div style={{ height: 6, background: 'var(--sc-bg)', borderRadius: 3, overflow: 'hidden' }}>
+                       <div style={{ height: '100%', width: `${val.score}%`, background: 'var(--sc-success)' }} />
+                     </div>
+                     <div style={{ fontSize: 11.5, color: 'var(--sc-text-muted)', marginTop: 4 }}>{val.reason}</div>
+                   </div>
+                 ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: 13, color: 'var(--sc-text-muted)' }}>Suitability scoring compares this opportunity against your skills, budget, and career goals once a profile is provided.</p>
+            )}
+          </Card>
+        </Reveal>
+
+        <Reveal delay={80}>
+          <Card style={{ height: '100%' }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>Skill gap analysis</h3>
+            {suitability.status === 'UNAVAILABLE' ? (
+              <p style={{ fontSize: 13.5, color: 'var(--sc-text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Icon name="minus-circle" size={16} /> Suitability analysis unavailable.
+              </p>
+            ) : (suitability.skillGap || []).length === 0 ? (
+              <>
+                <p style={{ fontSize: 13, color: 'var(--sc-text-secondary)', lineHeight: 1.5, marginBottom: 16 }}>
+                  No skill gap data is available for this report.
+                </p>
+                <p style={{ fontSize: 13, color: 'var(--sc-text-muted)' }}>Skill gap analysis appears once your profile includes skills to compare against this opportunity's requirements.</p>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize: 13, color: 'var(--sc-text-secondary)', lineHeight: 1.5, marginBottom: 16 }}>
+                  Where you already match, and what to strengthen.
+                </p>
+                <ul style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {(suitability.skillGap || []).map((s, i) => (
+                    <li key={i} style={{ fontSize: 13.5, color: 'var(--sc-text-secondary)' }}>
+                       <StatusChip label={s.skill} tone={s.currentLevel ? 'success' : 'warning'} size="sm" />
+                       <span style={{ marginLeft: 8 }}>{s.currentLevel ? 'Matched' : 'Missing'}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </Card>
+        </Reveal>
+      </div>
+
+      <Reveal>
+        <SectionHeading title="Alternatives" />
+      </Reveal>
+      {report.value?.status === 'UNAVAILABLE' ? (
+        <Reveal>
+          <p style={{ fontSize: 13.5, color: 'var(--sc-text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="minus-circle" size={15} /> Alternative search unavailable.
+          </p>
+        </Reveal>
+      ) : (!report.alternatives || report.alternatives.length === 0) && (!report.value?.alternatives || report.value.alternatives.length === 0) ? (
+        <Reveal>
+          <p style={{ fontSize: 13.5, color: 'var(--sc-text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="minus-circle" size={15} /> No verified free or lower-cost alternative found.
+          </p>
+        </Reveal>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 32 }} id="alt-grid">
+          {(report.alternatives || report.value?.alternatives || []).map((alt, i) => (
+            <Reveal key={alt.name + i} delay={i * 70}>
+              <Card hoverable style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <h4 style={{ fontSize: 15, fontWeight: 800, marginBottom: 8 }}>{alt.name}</h4>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--sc-primary)', marginBottom: 4 }}>{formatCurrency(alt.cost)}</div>
+                {alt.potentialSaving > 0 && (
+                  <StatusChip label={`Save ${formatCurrency(alt.potentialSaving)}`} tone="success" size="sm" />
+                )}
+                {alt.gains?.length > 0 && (
+                  <ul style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                    {alt.gains.map((g, gi) => (
+                      <li key={gi} style={{ fontSize: 12.5, color: 'var(--sc-text-secondary)', display: 'flex', gap: 6 }}>
+                        <Icon name="check" size={13} style={{ color: 'var(--sc-success)', flexShrink: 0, marginTop: 1 }} /> {g}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {alt.source && <p style={{ fontSize: 11.5, color: 'var(--sc-text-muted)', marginTop: 10 }}>Source: {alt.source}</p>}
+                {alt.url && <a href={alt.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--sc-primary)', textDecoration: 'none', marginTop: 4 }}>Visit site</a>}
+              </Card>
+            </Reveal>
+          ))}
+        </div>
+      )}
+      <style>{`@media (max-width: 860px) { #fit-grid, #alt-grid { grid-template-columns: 1fr !important; } }`}</style>
 
       <p style={{ fontSize: 11.5, color: 'var(--sc-text-muted)', marginTop: 32, textAlign: 'center' }}>
         Report generated {formatDate(report.createdAt)} · ScamCheck provides evidence-based guidance, not legal or financial advice.
@@ -372,13 +528,20 @@ function PaymentBlock({ payment, currency }) {
       >
         <div>
           <div style={{ fontSize: 26, fontWeight: 800, color: `var(--sc-${info.tone})` }}>
-            {hasAmount ? formatCurrency(payment.amount, currency) : payment.required ? 'Amount not specified' : 'No payment requested'}
+            {hasAmount ? formatCurrency(payment.amount, currency) : payment.required ? 'Amount not specified' : 'No payment mentioned'}
           </div>
           <div style={{ fontSize: 13, color: 'var(--sc-text-secondary)', marginTop: 4 }}>
             {payment.required
-              ? 'ScamCheck could not independently confirm this fee is legitimate.'
-              : 'No upfront fee was detected in this opportunity.'}
+              ? payment.status === 'NOT_IMPLEMENTED' || payment.status === 'UNKNOWN'
+                ? 'Payment requirement could not be independently verified.'
+                : 'ScamCheck could not independently confirm this fee is legitimate.'
+              : 'No upfront fee was identified in the submitted content.'}
           </div>
+          {payment.purpose && (
+            <div style={{ fontSize: 13, color: 'var(--sc-text-secondary)', marginTop: 4 }}>
+              <strong>Purpose:</strong> {payment.purpose} | <strong>Type:</strong> {payment.paymentType || 'ONE_TIME'} | <strong>Refundable:</strong> {payment.refundable ? 'Yes' : 'No'}
+            </div>
+          )}
         </div>
         <StatusChip label={info.label} tone={info.tone} />
       </div>

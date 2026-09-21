@@ -63,10 +63,10 @@ export default function IntelligencePage() {
       <Reveal>
         <StatusChip label="Opportunity intelligence" tone="primary" icon="sparkles" />
         <h1 style={{ fontSize: 'clamp(24px,3.4vw,32px)', fontWeight: 800, margin: '16px 0 10px', letterSpacing: '-0.01em' }}>
-          Is this opportunity worth pursuing?
+          Opportunity decision support
         </h1>
         <p style={{ fontSize: 15, color: 'var(--sc-text-secondary)', maxWidth: 680, lineHeight: 1.6, marginBottom: 24 }}>
-          ScamCheck compares the opportunity with your goals, skills, payment requirements, and available alternatives to help
+          ScamCheck compares evidence, risk signals, payment requirements, website/organization credibility, profile fit, and alternatives to help
           you make an informed decision.
         </p>
       </Reveal>
@@ -155,14 +155,14 @@ export default function IntelligencePage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
             <div>
               <div style={{ fontSize: 22, fontWeight: 800 }}>
-                {payment.amount != null ? formatCurrency(payment.amount, opportunity.fees?.currency) : payment.required ? 'Amount unspecified' : 'No fee requested'}
+                {payment.amount != null ? formatCurrency(payment.amount, opportunity.fees?.currency) : payment.required ? 'Amount unspecified' : 'No payment mentioned'}
               </div>
               <p style={{ fontSize: 13, color: 'var(--sc-text-secondary)', marginTop: 4 }}>
-                {payment.required ? 'ScamCheck could not independently confirm this payment is required for the opportunity.' : 'No upfront fee was detected.'}
+                {payment.required ? (payment.status === 'NOT_IMPLEMENTED' || payment.status === 'UNKNOWN' ? 'Payment requirement could not be independently verified.' : 'ScamCheck could not independently confirm this fee is legitimate.') : 'No upfront fee was identified in the submitted content.'}
               </p>
             </div>
-            <Button as={Link} to={`/report/${report.id}`} state={{ report }} variant="ghost" size="sm" icon="arrow-right">
-              Investigate payment
+            <Button as={Link} to={`/report/${report.id}#payment-verification`} state={{ report }} variant="ghost" size="sm" icon="arrow-right">
+              Verify payment
             </Button>
           </div>
         </Card>
@@ -221,18 +221,30 @@ export default function IntelligencePage() {
             Your decision summary
           </div>
           <h3 style={{ fontSize: 22, fontWeight: 800, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.01em' }}>{recInfo.label}</h3>
-          <p style={{ fontSize: 14.5, color: 'rgba(248,250,252,0.8)', lineHeight: 1.6, marginBottom: 24, maxWidth: 640 }}>{recInfo.summary}</p>
+          <p style={{ fontSize: 14.5, color: 'rgba(248,250,252,0.8)', lineHeight: 1.6, marginBottom: 16, maxWidth: 640 }}>{recInfo.summary}</p>
+
+          {(recommendation.cautionarySignals?.length > 0 || recommendation.unverifiedClaims?.length > 0) && (
+            <div style={{ background: 'rgba(0,0,0,0.15)', padding: '12px 16px', borderRadius: 'var(--sc-radius-sm)', marginBottom: 24, maxWidth: 640 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--sc-warning-border)', marginBottom: 6, textTransform: 'uppercase' }}>Why we flagged this</div>
+              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13.5, color: 'rgba(248,250,252,0.8)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {(recommendation.cautionarySignals || []).slice(0, 2).map((sig, i) => (
+                  <li key={`c-${i}`}>{sig}</li>
+                ))}
+                {(recommendation.unverifiedClaims || []).slice(0, 2).map((claim, i) => (
+                  <li key={`u-${i}`}>{claim}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', marginBottom: 24 }}>
             <MiniStat label="Skill fit" value={hasSuitability ? (suitability.score >= 70 ? 'Good' : suitability.score >= 40 ? 'Partial' : 'Weak') : 'Unknown'} tone={hasSuitability ? (suitability.score >= 70 ? 'success' : 'warning') : 'neutral'} />
-            <MiniStat label="Payment" value={payment.required ? 'Needs verification' : 'None requested'} tone={payment.required ? 'warning' : 'success'} />
+            <MiniStat label="Payment" value={payment.required ? 'Needs verification' : 'None mentioned'} tone={payment.required ? 'warning' : 'success'} />
             <MiniStat label="Risk level" value={riskInfo.label} tone={riskInfo.tone} />
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <Button as={Link} to={`/report/${report.id}`} state={{ report }} variant="primary" size="sm">
               Review risk report
-            </Button>
-            <Button as="a" href="#" onClick={(e) => e.preventDefault()} variant="ghost" size="sm" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.3)' }}>
-              Verify payment
             </Button>
             <Button as={Link} to="/analyze" variant="ghost" size="sm" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.3)' }}>
               Analyze another
