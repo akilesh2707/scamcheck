@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 
 export interface IReport extends Document {
   userId?: Types.ObjectId;
+  accessKeyHash?: string;
   opportunityId: Types.ObjectId;
   inputType: 'text' | 'screenshot' | 'pdf' | 'url';
   originalSubmission: Record<string, unknown>;
@@ -22,6 +23,7 @@ export interface IReport extends Document {
 const reportSchema = new Schema<IReport>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
+    accessKeyHash: { type: String, select: false },
     opportunityId: { type: Schema.Types.ObjectId, ref: 'Opportunity', required: true },
     inputType: { type: String, enum: ['text', 'screenshot', 'pdf', 'url'], required: true },
     originalSubmission: { type: Schema.Types.Mixed, default: {} },
@@ -40,5 +42,6 @@ const reportSchema = new Schema<IReport>(
 
 reportSchema.index({ userId: 1, createdAt: -1 });
 reportSchema.index({ opportunityId: 1 });
+reportSchema.index({ accessKeyHash: 1 }, { sparse: true });
 
 export const Report = mongoose.model<IReport>('Report', reportSchema);

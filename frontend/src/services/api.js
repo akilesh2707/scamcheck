@@ -14,6 +14,14 @@ client.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const reportMatch = config.url?.match(/\/analyze\/([a-zA-Z0-9_-]+)$/);
+  if (reportMatch && !config.headers['X-Report-Token']) {
+    const reportId = reportMatch[1];
+    const reportToken = localStorage.getItem(`scamcheck_report_token_${reportId}`);
+    if (reportToken) {
+      config.headers['X-Report-Token'] = reportToken;
+    }
+  }
   return config;
 });
 
@@ -165,7 +173,12 @@ export const api = {
       });
     }),
 
-  getReport: (id) => request(() => client.get(`/analyze/${id}`)),
+  getReport: (id, token) =>
+    request(() => {
+      const reportToken = token || localStorage.getItem(`scamcheck_report_token_${id}`);
+      const headers = reportToken ? { 'X-Report-Token': reportToken } : {};
+      return client.get(`/analyze/${id}`, { headers });
+    }),
 
   getHistory: (page = 1, limit = 20) =>
     request(() => client.get('/analyze/history', { params: { page, limit } })),

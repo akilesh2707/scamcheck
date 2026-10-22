@@ -10,6 +10,9 @@ jest.mock('redis', () => ({
   createClient: jest.fn().mockReturnValue({
     on: jest.fn(),
     connect: jest.fn().mockResolvedValue(undefined),
+    quit: jest.fn().mockResolvedValue('OK'),
+    disconnect: jest.fn().mockResolvedValue(undefined),
+    isOpen: true,
   })
 }));
 jest.mock('../utils/logger', () => ({

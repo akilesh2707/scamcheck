@@ -1,10 +1,23 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { resolve } from 'path'
+import fs from 'fs'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'copy-manifest',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'manifest.json',
+          source: fs.readFileSync(resolve(__dirname, 'manifest.json'), 'utf-8')
+        })
+      }
+    }
+  ],
   build: {
     rollupOptions: {
       input: {

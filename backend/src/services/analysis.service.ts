@@ -335,8 +335,17 @@ export class AnalysisService {
       evidenceLabels[indicator.code] = createDefaultEvidence(indicator.explanation, indicator.evidence, indicator.details);
     });
 
+    let accessKey: string | undefined;
+    let accessKeyHash: string | undefined;
+
+    if (!userId) {
+      accessKey = crypto.randomBytes(32).toString('hex');
+      accessKeyHash = crypto.createHash('sha256').update(accessKey).digest('hex');
+    }
+
     const reportDoc = await Report.create({
       userId,
+      accessKeyHash,
       opportunityId: opportunityDoc._id,
       inputType: 'text',
       originalSubmission: { text },
@@ -363,6 +372,7 @@ export class AnalysisService {
       evidenceLabels,
       createdAt: new Date().toISOString(),
       id: reportDoc._id.toString(),
+      ...(accessKey ? { accessToken: accessKey } : {}),
     };
 
     logger.info('Analysis complete', { reportId: report.id, riskLevel: riskAnalysis.level });
@@ -588,8 +598,16 @@ export class AnalysisService {
     };
   }
 
-  async getReportById(reportId: string, userId: string): Promise<AnalysisReport | null> {
-    const report = await Report.findOne({ _id: reportId, userId }).lean();
+  async getReportById(reportId: string, userId?: string, accessKey?: string): Promise<AnalysisReport | null> {
+    let report = null;
+    if (userId) {
+      report = await Report.findOne({ _id: reportId, userId }).lean();
+    }
+    if (!report && accessKey) {
+      const accessKeyHash = crypto.createHash('sha256').update(accessKey).digest('hex');
+      report = await Report.findOne({ _id: reportId, userId: { $in: [null, undefined] }, accessKeyHash }).lean();
+    }
+
     if (!report) return null;
 
     return {

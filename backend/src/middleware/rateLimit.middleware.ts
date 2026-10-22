@@ -6,9 +6,30 @@ import { AppError } from '../utils/errors';
 import { logger } from '../utils/logger';
 
 let rateLimiter: RateLimiterRedis | null = null;
+let rateLimiterRedisClient: any = null;
+
+export const closeRateLimiter = async (): Promise<void> => {
+  try {
+    if (rateLimiterRedisClient) {
+      const client = rateLimiterRedisClient as any;
+      if (typeof client.quit === 'function' && client.isOpen) {
+        await client.quit();
+      } else if (typeof client.disconnect === 'function') {
+        await client.disconnect();
+      }
+      rateLimiterRedisClient = null;
+    }
+    rateLimiter = null;
+  } catch (e) {
+    void e;
+  }
+};
 
 export const initRateLimiter = async (): Promise<void> => {
   try {
+    if (rateLimiterRedisClient) {
+      await closeRateLimiter();
+    }
     const redisClient = createClient({
       url: config.redis.url,
       socket: {
@@ -23,6 +44,7 @@ export const initRateLimiter = async (): Promise<void> => {
     redisClient.on('error', (err) => logger.error('Redis error', { error: err.message }));
     await redisClient.connect();
 
+    rateLimiterRedisClient = redisClient;
     rateLimiter = new RateLimiterRedis({
       storeClient: redisClient,
       useRedisPackage: true,

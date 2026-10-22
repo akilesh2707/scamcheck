@@ -46,7 +46,7 @@ describe('CORS Configuration', () => {
         .set('Origin', 'http://evil.example')
         .set('Access-Control-Request-Method', 'POST');
       
-      expect(res.status).toBe(500);
+      expect(res.status).toBe(403);
       expect(res.headers['access-control-allow-origin']).toBeUndefined();
     });
   });

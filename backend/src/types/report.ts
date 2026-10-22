@@ -135,4 +135,5 @@ export interface AnalysisReport {
   evidenceLabels: Record<string, Evidence>;
   createdAt: string;
   id: string;
+  accessToken?: string;
 }

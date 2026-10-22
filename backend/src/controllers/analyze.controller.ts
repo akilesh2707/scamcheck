@@ -92,16 +92,18 @@ export class AnalyzeController {
     try {
       const { id } = req.params;
       const userId = req.user?.id;
-      if (!userId) {
+      const reportToken = (req.headers['x-report-token'] as string) || (req.query.token as string);
+
+      if (!userId && !reportToken) {
         const response: ApiResponse<null> = {
           success: false,
-          error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          error: { code: 'UNAUTHORIZED', message: 'Authentication or report access token required' },
         };
         res.status(401).json(response);
         return;
       }
 
-      const report = await analysisService.getReportById(id, userId);
+      const report = await analysisService.getReportById(id, userId, reportToken);
 
       if (!report) {
         const response: ApiResponse<null> = {

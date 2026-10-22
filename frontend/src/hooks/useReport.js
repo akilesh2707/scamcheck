@@ -24,9 +24,36 @@ export function useReport(id, preloaded) {
   }, [id]);
 
   useEffect(() => {
-    if (preloaded) return;
+    if (preloaded) {
+      if (preloaded.accessToken && id) {
+        try {
+          localStorage.setItem(`scamcheck_report_token_${id}`, preloaded.accessToken);
+        } catch (e) {
+          void e;
+        }
+      }
+      return;
+    }
+
+    if (typeof window !== 'undefined' && window.location?.search && id) {
+      try {
+        const params = new window.URLSearchParams(window.location.search);
+        const tokenFromUrl = params.get('token');
+        if (tokenFromUrl) {
+          localStorage.setItem(`scamcheck_report_token_${id}`, tokenFromUrl);
+          // Strip token from URL to mitigate referrer and history leakage
+          params.delete('token');
+          const newQuery = params.toString();
+          const newUrl = window.location.pathname + (newQuery ? `?${newQuery}` : '') + window.location.hash;
+          window.history.replaceState({}, '', newUrl);
+        }
+      } catch (e) {
+        void e;
+      }
+    }
+
     load();
-  }, [load, preloaded]);
+  }, [load, preloaded, id]);
 
   return { report, status, error, reload: load };
 }

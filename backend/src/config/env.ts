@@ -5,7 +5,7 @@ dotenv.config();
 const isProduction = process.env.NODE_ENV === 'production';
 
 if (isProduction) {
-  const requiredVars = ['JWT_SECRET', 'MONGODB_URI', 'REDIS_URL'];
+  const requiredVars = ['JWT_SECRET', 'MONGODB_URI', 'REDIS_URL', 'ML_SERVICE_URL'];
   const missing = requiredVars.filter(v => !process.env[v]);
   if (missing.length > 0) {
     throw new Error(`CRITICAL: Missing required production environment variables: ${missing.join(', ')}`);
@@ -14,7 +14,7 @@ if (isProduction) {
 
 export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
-  port: parseInt(process.env.PORT || '5000', 10),
+  port: parseInt(process.env.PORT || '5001', 10),
   mongodb: {
     uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/scamcheck',
   },
@@ -39,6 +39,8 @@ export const config = {
     maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
   },
   cors: {
-    allowedOrigins: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost', 'http://localhost:5173'],
+    allowedOrigins: process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
+      : ['http://localhost', 'http://localhost:5173'],
   },
 };

@@ -8,13 +8,30 @@ import { config } from '../config/env';
 import { AppError, ValidationError, NotFoundError } from '../utils/errors';
 import { logger } from '../utils/logger';
 
-const redisClient = createClient({ url: config.redis.url });
+const redisClient = createClient({
+  url: config.redis.url,
+  socket: {
+    connectTimeout: 2000,
+    reconnectStrategy: (retries) => {
+      if (retries > 2) {
+        return new Error('Redis connection retries exhausted');
+      }
+      return Math.min(retries * 50, 200);
+    },
+  },
+});
 redisClient.on('error', (err) => logger.error('Auth redis error', { error: err.message }));
 redisClient.connect().catch(() => {});
 
 export const closeAuthRedis = async () => {
-  if (redisClient.isOpen) {
-    await redisClient.quit();
+  try {
+    if (redisClient.isOpen) {
+      await redisClient.quit();
+    } else {
+      await redisClient.disconnect();
+    }
+  } catch (e) {
+    void e;
   }
 };
 

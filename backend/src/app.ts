@@ -4,7 +4,9 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { config } from './config/env';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
-import { initRateLimiter } from './middleware/rateLimit.middleware';
+import { initRateLimiter, closeRateLimiter } from './middleware/rateLimit.middleware';
+import { closeAuthRedis } from './services/auth.service';
+import { AppError } from './utils/errors';
 
 import analyzeRoutes from './routes/analyze.routes';
 import authRoutes from './routes/auth.routes';
@@ -34,7 +36,7 @@ export const createApp = (): express.Application => {
       if (allowedOrigins.includes(origin) || origin.startsWith('chrome-extension://')) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        callback(new AppError('CORS_FORBIDDEN', 'Not allowed by CORS', 403));
       }
     },
     credentials: true,
@@ -100,6 +102,8 @@ export const startServer = async () => {
     console.log(`\n${signal} received. Starting graceful shutdown...`);
     server.close(async () => {
       console.log('HTTP server closed.');
+      await closeRateLimiter();
+      await closeAuthRedis();
       await disconnectDatabase();
       process.exit(0);
     });

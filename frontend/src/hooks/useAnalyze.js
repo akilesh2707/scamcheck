@@ -45,6 +45,13 @@ export function useAnalyze() {
         clearInterval(stepTimer);
         setStatus('idle');
         isRequesting.current = false;
+        if (report?.accessToken && report?.id) {
+          try {
+            localStorage.setItem(`scamcheck_report_token_${report.id}`, report.accessToken);
+          } catch (e) {
+            void e;
+          }
+        }
         navigate(`/report/${report.id}`, { state: { report } });
         return report;
       } catch (err) {
